@@ -1,0 +1,69 @@
+﻿//
+// Copyright (c) 2035 Quantrosoft Pty. Ltd.
+// All rights reserved.
+//
+
+// cTrader API Emulator
+// Type: cAlgo.ChartColorSettings
+using cAlgo;
+
+namespace cAlgo.API
+{
+    /// <summary>Represents the charts cAlgo.API.Color Settings.</summary>
+    /// <remarks>
+    /// Use the cAlgo.API.Color classes to set the chart cAlgo.API.Color Settings.
+    /// </remarks>
+    public class ChartColorSettings
+    {
+        /// <summary>Gets or sets the color of the chart background.</summary>
+        public Color BackgroundColor { get; set; }
+
+        /// <summary>Gets or sets the color of the chart foreground.</summary>
+        public Color ForegroundColor { get; set; }
+
+        /// <summary>Gets or sets the color of the grid lines.</summary>
+        public Color GridLinesColor { get; set; }
+
+        /// <summary>Gets or sets the color of the period separator.</summary>
+        public Color PeriodSeparatorColor { get; set; }
+
+        /// <summary>
+        /// Gets or sets the color of the bull candle or bar outline.
+        /// </summary>
+        public Color BullOutlineColor { get; set; }
+
+        /// <summary>
+        /// Gets or sets the color of the bear candle or bar outline.
+        /// </summary>
+        public Color BearOutlineColor { get; set; }
+
+        /// <summary>Gets or sets the color of the bull candle fill.</summary>
+        public Color BullFillColor { get; set; }
+
+        /// <summary>Gets or sets the color of the bear candle fill.</summary>
+        public Color BearFillColor { get; set; }
+
+        /// <summary>Gets or sets the color of the tick volume.</summary>
+        public Color TickVolumeColor { get; set; }
+
+        /// <summary>Gets or sets the color of the winning deal.</summary>
+        public Color WinningDealColor { get; set; }
+
+        /// <summary>Gets or sets the color of the losing deal.</summary>
+        public Color LosingDealColor { get; set; }
+
+        /// <summary>Gets or sets the color of the ask price line.</summary>
+        public Color AskPriceLineColor { get; set; }
+
+        /// <summary>Gets or sets the color of the bid price line.</summary>
+        public Color BidPriceLineColor { get; set; }
+
+        /// <summary>Gets or sets the color of Buy positions and orders.</summary>
+        public Color BuyColor { get; set; }
+
+        /// <summary>
+        /// Gets or sets the color of Sell order positions and orders.
+        /// </summary>
+        public Color SellColor { get; set; }
+    }
+}

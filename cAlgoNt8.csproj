@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+   <PropertyGroup>
+      <TargetFramework>net481</TargetFramework>
+      <OutputType>Library</OutputType>
+      <UseWPF>true</UseWPF>
+      <LangVersion>9.0</LangVersion>
+   </PropertyGroup>
+   <ItemGroup>
+     <Compile Remove="Properties\**" />
+     <EmbeddedResource Remove="Properties\**" />
+     <None Remove="Properties\**" />
+     <Page Remove="Properties\**" />
+   </ItemGroup>
+   <ItemGroup>
+     <None Remove="cAlgoNt8.sln.licenseheader" />
+   </ItemGroup>
+   <ItemGroup>
+     <Reference Include="NinjaTrader.Core">
+       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\NinjaTrader.Core.dll</HintPath>
+     </Reference>
+     <Reference Include="NinjaTrader.Gui">
+       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\NinjaTrader.Gui.dll</HintPath>
+     </Reference>
+     <Reference Include="SharpDX">
+       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.dll</HintPath>
+     </Reference>
+     <Reference Include="SharpDX.Direct2D1">
+       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.Direct2D1.dll</HintPath>
+     </Reference>
+     <Reference Include="SharpDX.Direct3D10">
+       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.Direct3D10.dll</HintPath>
+     </Reference>
+     <Reference Include="SharpDX.DXGI">
+       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.DXGI.dll</HintPath>
+     </Reference>
+     <Reference Include="System.ComponentModel.DataAnnotations" />
+   </ItemGroup>
+</Project>

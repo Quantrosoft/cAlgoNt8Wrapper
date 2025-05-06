@@ -1,0 +1,6 @@
+﻿extensions: designer.cs generated.cs
+extensions: .cs .cpp .h
+//
+// Copyright (c) 2035 Quantrosoft Pty. Ltd.
+// All rights reserved.
+//
