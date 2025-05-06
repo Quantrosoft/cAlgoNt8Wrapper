@@ -1,26 +1,4 @@
-﻿/* MIT License
-Copyright (c) 2035 Quantrosoft Pty. Ltd.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. 
-*/
-
-#define REPURCHASE_NOT_ORDERSx
+﻿#define REPURCHASE_NOT_ORDERSx
 
 using cAlgo.API;
 using cAlgo.API.Internals;
@@ -2046,12 +2024,12 @@ namespace RobotLib
         //}
 
         public Position OpenTrade(
-           Symbol symbol,
-           TradeType tradeType,
-           TradeDirections allowedDirection,
-           string commentVersion,
-        string label,
-           double volume)
+            Symbol symbol,
+            TradeType tradeType,
+            TradeDirections allowedDirection,
+            string commentVersion,
+            string label,
+            double volume)
         {
             if ((tradeType == TradeType.Buy && (allowedDirection == TradeDirections.FromConfigFiles
                   || allowedDirection == TradeDirections.Long))
@@ -2060,13 +2038,35 @@ namespace RobotLib
             {
                 var orderComment = MakeLogComment(symbol, commentVersion);
                 volume = symbol.NormalizeVolumeInUnits(volume);
-                TradeResult result = null;
-                result = mRobot.ExecuteMarketOrder(tradeType, symbol.Name, volume, label, 0, 0, orderComment);
+                var result = mRobot.ExecuteMarketOrder(tradeType, symbol.Name, volume, label, 0, 0, orderComment);
                 if (result.IsSuccessful)
                     return result.Position;
             }
             return null;
         }
+
+        //public Position OpenLimitTrade(
+        //    Symbol symbol,
+        //    TradeType tradeType,
+        //    TradeDirections allowedDirection,
+        //    string commentVersion,
+        //    string label,
+        //    double volume,
+        //    double targetPrice)
+        //{
+        //    if ((tradeType == TradeType.Buy && (allowedDirection == TradeDirections.FromConfigFiles
+        //          || allowedDirection == TradeDirections.Long))
+        //       || (tradeType == TradeType.Sell && (allowedDirection == TradeDirections.FromConfigFiles
+        //          || allowedDirection == TradeDirections.Short)))
+        //    {
+        //        var orderComment = MakeLogComment(symbol, commentVersion);
+        //        volume = symbol.NormalizeVolumeInUnits(volume);
+        //        var result = mRobot.PlaceLimitOrder(tradeType, symbol.Name, volume, targetPrice, label, 0, 0, null, orderComment);
+        //        if (result.IsSuccessful)
+        //            return result.Position;
+        //    }
+        //    return null;
+        //}
 
         public bool CloseTrade(Position pos)
         {
