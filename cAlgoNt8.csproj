@@ -13,7 +13,13 @@
      <Page Remove="Properties\**" />
    </ItemGroup>
    <ItemGroup>
+     <None Remove=".gitattributes" />
+     <None Remove=".gitignore" />
      <None Remove="cAlgoNt8.sln.licenseheader" />
+     <None Remove="LICENSE.txt" />
+   </ItemGroup>
+   <ItemGroup>
+     <ProjectReference Include="..\..\..\source\TDS2.0\Libs\TdsCommons\TdsCommons.csproj" />
    </ItemGroup>
    <ItemGroup>
      <Reference Include="NinjaTrader.Core">
