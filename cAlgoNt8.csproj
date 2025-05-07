@@ -5,15 +5,20 @@
       <OutputType>Library</OutputType>
       <UseWPF>true</UseWPF>
       <LangVersion>9.0</LangVersion>
+      <PlatformTarget>x64</PlatformTarget>
    </PropertyGroup>
    <ItemGroup>
      <Compile Remove="Nt8\**" />
+     <Compile Remove="packages\**" />
      <Compile Remove="Properties\**" />
      <EmbeddedResource Remove="Nt8\**" />
+     <EmbeddedResource Remove="packages\**" />
      <EmbeddedResource Remove="Properties\**" />
      <None Remove="Nt8\**" />
+     <None Remove="packages\**" />
      <None Remove="Properties\**" />
      <Page Remove="Nt8\**" />
+     <Page Remove="packages\**" />
      <Page Remove="Properties\**" />
    </ItemGroup>
    <ItemGroup>
@@ -23,33 +28,47 @@
      <None Remove="LICENSE.txt" />
    </ItemGroup>
    <ItemGroup>
-     <ProjectReference Include="..\..\..\source\TDS2.0\Libs\TdsCommons\TdsCommons.csproj" />
+     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\AbstractRobot.cs" Link="Shared\RobotLib\AbstractRobot.cs" />
+     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\CS\CsLogger.cs" Link="Shared\RobotLib\CsLogger.cs" />
+     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\CS\CsRobot.cs" Link="Shared\RobotLib\CsRobot.cs" />
+     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\CS\CSRobotFactory.cs" Link="Shared\RobotLib\CSRobotFactory.cs" />
+     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\ILogger.cs" Link="Shared\RobotLib\ILogger.cs" />
+     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\IRobot.cs" Link="Shared\RobotLib\IRobot.cs" />
+     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\IRobotFactory.cs" Link="Shared\RobotLib\IRobotFactory.cs" />
    </ItemGroup>
    <ItemGroup>
      <Reference Include="NinjaTrader.Core">
-       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\NinjaTrader.Core.dll</HintPath>
+       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\NinjaTrader.Core.dll</HintPath>
      </Reference>
      <Reference Include="NinjaTrader.Custom">
-       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\NinjaTrader.Custom.dll</HintPath>
+       <HintPath>..\..\NinjaTrader 8\bin\Custom\NinjaTrader.Custom.dll</HintPath>
      </Reference>
      <Reference Include="NinjaTrader.Gui">
-       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\NinjaTrader.Gui.dll</HintPath>
+       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\NinjaTrader.Gui.dll</HintPath>
      </Reference>
      <Reference Include="SharpDX">
-       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.dll</HintPath>
+       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.dll</HintPath>
      </Reference>
      <Reference Include="SharpDX.Direct2D1">
-       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.Direct2D1.dll</HintPath>
+       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.Direct2D1.dll</HintPath>
      </Reference>
      <Reference Include="SharpDX.Direct3D10">
-       <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.Direct3D10.dll</HintPath>
+       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.Direct3D10.dll</HintPath>
      </Reference>
      <Reference Include="SharpDX.DXGI">
        <HintPath>..\..\NinjaTrader 8\bin\Custom\bin\Debug\SharpDX.DXGI.dll</HintPath>
      </Reference>
      <Reference Include="System.ComponentModel.DataAnnotations" />
+     <Reference Include="System.IO.Compression" />
    </ItemGroup>
-   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-     <Exec Command="xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\CS\*.cs&quot; &quot;$(ProjectDir)Shared&quot; &gt;nul&#xD;&#xA;xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\*.cs&quot; &quot;$(ProjectDir)Shared&quot; &gt;nul" />
-   </Target>
+   <ItemGroup>
+     <Folder Include="Shared\RobotLib\" />
+   </ItemGroup>
+   <ItemGroup>
+     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+     <PackageReference Include="SevenZip" Version="19.0.0" />
+   </ItemGroup>
+   <ItemGroup>
+     <ProjectReference Include="..\..\..\source\TDS2.0\Libs\TdsCommons\TdsCommons.csproj" />
+   </ItemGroup>
 </Project>

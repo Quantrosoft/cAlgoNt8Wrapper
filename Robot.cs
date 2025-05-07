@@ -146,8 +146,7 @@ namespace cAlgo.API
                     // Caution: The Times[0] is the open time of the new bar!!!
                     // NinjaTrader is such a piece of Sh...t!!!
 
-                    Calculate = Calculate.OnBarClose;
-                    //Calculate = Calculate.OnEachTick;
+                    Calculate = Calculate.OnEachTick;
 
                     //IsExitOnSessionCloseStrategy = false; // is controlled by "Exit on session close on GUI"
                     //ExitOnSessionCloseSeconds = 30;
