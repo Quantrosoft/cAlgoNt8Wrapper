@@ -23,6 +23,7 @@ SOFTWARE.
 using cAlgo.API.Internals;
 using NinjaTrader.Cbi;
 using NinjaTrader.Core;
+using NinjaTrader.CQG.ProtoBuf;
 using NinjaTrader.Data;
 using NinjaTrader.Gui.NinjaScript;
 using NinjaTrader.NinjaScript;
@@ -368,27 +369,28 @@ namespace cAlgo.API
             var currentClosePrice = tradeType == TradeType.Buy ? botSymbol.Bid : botSymbol.Ask;
 
             NinjaTrader.Cbi.Order order = null;
+            var signal = label + "|" + comment;
             if (tradeType == TradeType.Buy)
             {
                 // store label + comment in the order for later restart
-                order = EnterLong((int)volume, label + "|" + comment);
+                order = EnterLong((int)volume, signal);
 
                 if (null != stopLossPips && 0 != stopLossPips)
                 {
                     stopPrice = currentClosePrice - (double)stopLossPips * TickSize;
-                    SetStopLoss(label, CalculationMode.Price, (double)stopPrice, false);
+                    SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
                 }
 
                 if (null != takeProfitPips && 0 != takeProfitPips)
                 {
                     targetPrice = currentClosePrice + (double)takeProfitPips * TickSize;
-                    SetProfitTarget(label, CalculationMode.Price, (double)targetPrice);
+                    SetProfitTarget(signal, CalculationMode.Price, (double)targetPrice);
                 }
             }
             else // TradeType.Sell
             {
                 // store label + comment in the order for later restart
-                order = EnterShort((int)volume, label + "|" + comment);
+                order = EnterShort((int)volume, signal + "|" + comment);
                 if (null != stopLossPips && 0 != stopLossPips)
                 {
                     stopPrice = currentClosePrice + (double)stopLossPips * TickSize;
@@ -398,7 +400,7 @@ namespace cAlgo.API
                 if (null != takeProfitPips && 0 != takeProfitPips)
                 {
                     targetPrice = currentClosePrice - (double)takeProfitPips * TickSize;
-                    SetProfitTarget(label, CalculationMode.Price, (double)targetPrice);
+                    SetProfitTarget(signal, CalculationMode.Price, (double)targetPrice);
                 }
             }
 
@@ -406,7 +408,7 @@ namespace cAlgo.API
             {
                 EntryTime = Time,
                 Comment = comment,
-                Label = label,
+                Label = signal,
                 Swap = 0,                              // Not tracked by NinjaTrader by default
                 StopLoss = null,                       // If you set SL/TP, track externally
                 TakeProfit = null,
@@ -419,6 +421,74 @@ namespace cAlgo.API
             Positions.RaiseOpened(new PositionOpenedEventArgs(position));
 
             return new TradeResult() { Position = position, IsSuccessful = true };
+        }
+
+        public TradeResult PlaceLimitOrder(TradeType tradeType,
+            string symbolName,
+            double volume,
+            double limitPrice,
+            string label,
+            double? stopLossPips,
+            double? takeProfitPips,
+            DateTime? expiration,
+            string comment)
+        {
+            double? stopPrice = null;
+            double? tpPrice = null;
+
+            var botSymbol = Symbols.GetSymbol(symbolName);
+            var currentClosePrice = tradeType == TradeType.Buy ? botSymbol.Bid : botSymbol.Ask;
+
+            NinjaTrader.Cbi.Order order = null;
+            var signal = label + "|" + comment;
+            if (tradeType == TradeType.Buy)
+            {
+                // store label + comment in the order for later restart
+                order = EnterLongLimit((int)volume, limitPrice, signal);
+
+                if (null != stopLossPips && 0 != stopLossPips)
+                {
+                    stopPrice = currentClosePrice - (double)stopLossPips * TickSize;
+                    SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
+                }
+
+                if (null != takeProfitPips && 0 != takeProfitPips)
+                {
+                    tpPrice = currentClosePrice + (double)takeProfitPips * TickSize;
+                    SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
+                }
+            }
+            else // TradeType.Sell
+            {
+                // store label + comment in the order for later restart
+                order = EnterShortLimit((int)volume, limitPrice, signal + "|" + comment);
+                if (null != stopLossPips && 0 != stopLossPips)
+                {
+                    stopPrice = currentClosePrice + (double)stopLossPips * TickSize;
+                    SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
+                }
+
+                if (null != takeProfitPips && 0 != takeProfitPips)
+                {
+                    tpPrice = currentClosePrice - (double)takeProfitPips * TickSize;
+                    SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
+                }
+            }
+
+            var position = new Position(this, order)
+            {
+                EntryTime = Time,
+                Comment = comment,
+                Label = signal,
+                Swap = 0,                              // Not tracked by NinjaTrader by default
+                StopLoss = null,                       // If you set SL/TP, track externally
+                TakeProfit = null,
+                Pips = 0,
+                Margin = 0,
+                HasTrailingStop = false
+            };
+
+            return new TradeResult() { IsSuccessful = false, };
         }
 
         // Summary:
