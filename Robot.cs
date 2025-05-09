@@ -53,6 +53,7 @@ namespace cAlgo.API
         [XmlIgnore] public Symbols Symbols;
         [XmlIgnore] public new Account Account;
         [XmlIgnore] public new Positions Positions;
+        [XmlIgnore] public PendingOrders PendingOrders;
         [XmlIgnore] public History History;
         [XmlIgnore] public Chart Chart;
         [XmlIgnore] public MarketData MarketData;
@@ -185,6 +186,7 @@ namespace cAlgo.API
                     MarketData = new MarketData(this);
                     Account = new Account(this);
                     Positions = new Positions(this);
+                    PendingOrders = new PendingOrders(this);
                     History = new History(this);
                     Chart = new Chart(this);
 
@@ -409,12 +411,12 @@ namespace cAlgo.API
                 EntryTime = Time,
                 Comment = comment,
                 Label = signal,
-                Swap = 0,                              // Not tracked by NinjaTrader by default
-                StopLoss = null,                       // If you set SL/TP, track externally
+                Swap = 0,
+                StopLoss = null,
                 TakeProfit = null,
                 Pips = 0,
                 Margin = 0,
-                HasTrailingStop = false
+                HasTrailingStop = false,
             };
 
             Positions.Add(position);
@@ -443,8 +445,12 @@ namespace cAlgo.API
             var signal = label + "|" + comment;
             if (tradeType == TradeType.Buy)
             {
-                // store label + comment in the order for later restart
-                order = EnterLongLimit((int)volume, limitPrice, signal);
+                // public Order EnterLongLimit(int barsInProgressIndex, bool isLiveUntilCancelled, int quantity, double limitPrice, string signalName)
+                order = EnterLongLimit(botSymbol.BarsInProgressIndex,
+                    true,
+                    (int)volume,
+                    limitPrice,
+                    signal);
 
                 if (null != stopLossPips && 0 != stopLossPips)
                 {
@@ -460,8 +466,11 @@ namespace cAlgo.API
             }
             else // TradeType.Sell
             {
-                // store label + comment in the order for later restart
-                order = EnterShortLimit((int)volume, limitPrice, signal + "|" + comment);
+                order = EnterShortLimit(botSymbol.BarsInProgressIndex,
+                    true,
+                    (int)volume,
+                    limitPrice,
+                    signal);
                 if (null != stopLossPips && 0 != stopLossPips)
                 {
                     stopPrice = currentClosePrice + (double)stopLossPips * TickSize;
@@ -475,20 +484,28 @@ namespace cAlgo.API
                 }
             }
 
-            var position = new Position(this, order)
+            var pendingOrder = new PendingOrder(this, order)
             {
-                EntryTime = Time,
                 Comment = comment,
                 Label = signal,
-                Swap = 0,                              // Not tracked by NinjaTrader by default
-                StopLoss = null,                       // If you set SL/TP, track externally
-                TakeProfit = null,
-                Pips = 0,
-                Margin = 0,
-                HasTrailingStop = false
+                StopLoss = stopPrice,    
+                TakeProfit = tpPrice,
+                HasTrailingStop = false,
+                StopLossTriggerMethod = null,
+                StopOrderTriggerMethod = null,
+                StopLimitRangePips = null,
+                ExpirationTime = expiration,
+                VolumeInUnits = volume,
+                TargetPrice = limitPrice,
+                TradeType = tradeType,
+                SymbolName = symbolName,
+                Quantity = volume,
             };
 
-            return new TradeResult() { IsSuccessful = false, };
+            PendingOrders.Add(pendingOrder);
+            PendingOrders.RaiseCreated(new PendingOrderCreatedEventArgs(pendingOrder));
+
+            return new TradeResult() { IsSuccessful = true, };
         }
 
         // Summary:

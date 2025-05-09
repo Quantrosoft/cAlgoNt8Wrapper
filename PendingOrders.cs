@@ -21,12 +21,33 @@ SOFTWARE.
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace cAlgo.API
 {
-    public interface PendingOrders : IEnumerable<PendingOrder>//, IEnumerable
+    public class PendingOrders : IEnumerable<PendingOrder>, IEnumerable
     {
+        private List<PendingOrder> mPendingOrders = new();
+        //private Robot mAlgoBot;
+
+        public PendingOrders(Robot robot)
+        {
+            //mAlgoBot = robot;
+        }
+
+        // Implementing IEnumerable<Position>
+        public IEnumerator<PendingOrder> GetEnumerator()
+        {
+            return mPendingOrders.GetEnumerator();
+        }
+
+        // Non-generic IEnumerator for compatibility
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
         /// <summary>Find a pending order by index</summary>
         /// <param name="index">The position of the order in the collection</param>
         /// <example>
@@ -35,7 +56,13 @@ namespace cAlgo.API
         ///     Print(PendingOrders[0].Id);
         /// </code>
         /// </example>
-        PendingOrder this[int index] { get; }
+        public PendingOrder this[int index]
+        {
+            get
+            {
+                return mPendingOrders[index];
+            }
+        }
 
         /// <summary>Total number of pending orders</summary>
         /// <example>
@@ -43,7 +70,37 @@ namespace cAlgo.API
         /// var totalOrders = PendingOrders.Count;
         /// </code>
         /// </example>
-        int Count { get; }
+        public int Count => mPendingOrders.Count;
+
+        public void Add(PendingOrder pendingOrder)
+        {
+            mPendingOrders.Add(pendingOrder);
+        }
+
+        public void Remove(PendingOrder pendingOrder)
+        {
+            mPendingOrders.Remove(pendingOrder);
+        }
+
+        public void RaiseCreated(PendingOrderCreatedEventArgs args)
+        {
+            Created?.Invoke(args);
+        }
+
+        public void RaiseModified(PendingOrderModifiedEventArgs args)
+        {
+            Modified?.Invoke(args);
+        }
+
+        public void RaiseCancelled(PendingOrderCancelledEventArgs args)
+        {
+            Cancelled?.Invoke(args);
+        }
+
+        public void RaiseFilled(PendingOrderFilledEventArgs args)
+        {
+            Filled?.Invoke(args);
+        }
 
         /// <summary>Occurs when pending order is created</summary>
         /// <example>
@@ -59,7 +116,7 @@ namespace cAlgo.API
         /// }
         /// </code>
         /// </example>
-        event Action<PendingOrderCreatedEventArgs> Created;
+        public event Action<PendingOrderCreatedEventArgs> Created;
 
         /// <summary>Occurs when pending order is modified</summary>
         /// <example>
@@ -76,7 +133,7 @@ namespace cAlgo.API
         /// }
         /// </code>
         /// </example>
-        event Action<PendingOrderModifiedEventArgs> Modified;
+        public event Action<PendingOrderModifiedEventArgs> Modified;
 
         /// <summary>Occurs when pending order is cancelled</summary>
         /// <example>
@@ -93,7 +150,7 @@ namespace cAlgo.API
         /// }
         /// </code>
         /// </example>
-        event Action<PendingOrderCancelledEventArgs> Cancelled;
+        public event Action<PendingOrderCancelledEventArgs> Cancelled;
 
         /// <summary>Occurs when pending order is filled</summary>
         /// <example>
@@ -109,6 +166,6 @@ namespace cAlgo.API
         /// }
         /// </code>
         /// </example>
-        event Action<PendingOrderFilledEventArgs> Filled;
+        public event Action<PendingOrderFilledEventArgs> Filled;
     }
 }

@@ -23,18 +23,19 @@ SOFTWARE.
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace cAlgo.API
 {
-    public class Positions : IEnumerable<Position>
+    public class Positions : IEnumerable<Position>, IEnumerable
     {
+        private List<Position> mPositions = new();
+        //private Robot mAlgoBot;
+
         public Positions(Robot robot)
         {
-            mAlgoBot = robot;
+            //mAlgoBot = robot;
         }
-
-        private List<Position> mPositions = new List<Position>();
-        private Robot mAlgoBot;
 
         // Implementing IEnumerable<Position>
         public IEnumerator<Position> GetEnumerator()
@@ -80,14 +81,17 @@ namespace cAlgo.API
 
         public void RaiseOpened(PositionOpenedEventArgs args)
         {
-            // Only the class that declares the event can do this
-            Opened?.Invoke(args);
+            Opened?.Invoke(args);   // Only invoke if not null
         }
 
         public void RaiseClosed(PositionClosedEventArgs args)
         {
-            // Only the class that declares the event can do this
-            Closed?.Invoke(args);
+            Closed?.Invoke(args);   // Only invoke if not null
+        }
+
+        public void RaiseModified(PositionModifiedEventArgs args)
+        {
+            Modified?.Invoke(args); // Only invoke if not null
         }
 
         //
@@ -103,7 +107,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Occurs each time a position is modified.
-        //public event Action<PositionModifiedEventArgs> Modified;
+        public event Action<PositionModifiedEventArgs> Modified;
 
         //
         // Summary:
@@ -115,7 +119,7 @@ namespace cAlgo.API
         //
         // Returns:
         //     Position if it exists, null otherwise
-        //Position Find(string label);
+        public Position Find(string label) => mPositions.Where(p => p.Label == label).FirstOrDefault();
 
         //
         // Summary:
@@ -130,7 +134,8 @@ namespace cAlgo.API
         //
         // Returns:
         //     Position if it exists, null otherwise
-        //Position Find(string label, string symbolName);
+        public Position Find(string label, string symbolName) => mPositions.Where(p => p.Label == label
+            && p.SymbolName == symbolName).FirstOrDefault();
 
         //
         // Summary:
@@ -148,7 +153,9 @@ namespace cAlgo.API
         //
         // Returns:
         //     Position if it exists, null otherwise
-        //Position Find(string label, string symbolName, TradeType tradeType);
+        public Position Find(string label, string symbolName, TradeType tradeType) => mPositions.Where(p => p.Label == label
+            && p.SymbolName == symbolName
+            && p.TradeType == tradeType).FirstOrDefault();
 
         //
         // Summary:
@@ -175,7 +182,8 @@ namespace cAlgo.API
         //
         // Returns:
         //     Array of Positions
-        //Position[] FindAll(string label, string symbolName);
+        public Position[] FindAll(string label, string symbolName) => mPositions.Where(p => p.Label == label
+            && p.SymbolName == symbolName).ToArray();
 
         //
         // Summary:
@@ -193,6 +201,8 @@ namespace cAlgo.API
         //
         // Returns:
         //     Array of Positions
-        //Position[] FindAll(string label, string symbolName, TradeType tradeType);
+        public Position[] FindAll(string label, string symbolName, TradeType tradeType) => mPositions.Where(p => p.Label == label
+            && p.SymbolName == symbolName
+            && p.TradeType == tradeType).ToArray();
     }
 }
