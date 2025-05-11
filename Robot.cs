@@ -97,6 +97,9 @@ namespace cAlgo.API
             int count = 0;
             foreach (KeyValuePair<(int, string), Bars> kvp in MarketData.BarsDictionary)
             {
+                if (0 == kvp.Value.BarsPeriod.Value)
+                    throw new Exception($"Error: Bars Period Value may not be 0");
+
                 // skip primary data series
                 if (0 == count)
                 {
