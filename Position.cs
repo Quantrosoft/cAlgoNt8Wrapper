@@ -31,41 +31,41 @@ namespace cAlgo.API
     //     Taking or opening a position means buying or selling a trading pair.
     public class Position
     {
-        public Order Order;
+        public Order NinjaOrder;
         private Robot mRobot;
+        private double mLastGrossProfit;
+        private double mLastNetProfit;
 
         public Position(Robot robot, Order order)
         {
             mRobot = robot;
-            Order = order;
+            NinjaOrder = order;
         }
 
         //
         // Summary:
         //     Gets the symbol name.
-        public string SymbolName => Order.Instrument.FullName;
+        public string SymbolName => NinjaOrder.Instrument.FullName;
 
         //
         // Summary:
         //     Trade type (Buy/Sell) of the position.
-        public TradeType TradeType => Order.IsLong
-            ? TradeType.Buy
-            : TradeType.Sell;
+        public TradeType TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
 
         //
         // Summary:
         //     The amount traded by the position.
-        public double VolumeInUnits => Order.Quantity;
+        public double VolumeInUnits => NinjaOrder.Quantity;
 
         //
         // Summary:
         //     The position's unique identifier.
-        public int Id => Order.OrderId.GetHashCode();
+        public int Id => NinjaOrder.OrderId.GetHashCode();
 
         //
         // Summary:
         //     Entry price of the position.
-        public double EntryPrice => Order.AverageFillPrice;
+        public double EntryPrice => NinjaOrder.AverageFillPrice;
 
         //
         // Summary:
@@ -89,7 +89,7 @@ namespace cAlgo.API
                 else
                     return mLastGrossProfit = mRobot.Position.GetUnrealizedProfitLoss(
                         PerformanceUnit.Currency,
-                        Order.IsLong
+                        NinjaOrder.IsLong
                             ? Symbol.Bid
                             : Symbol.Ask);
             }
@@ -105,10 +105,7 @@ namespace cAlgo.API
                     return mLastNetProfit;
                 else
                     return mLastNetProfit = mRobot.Position.GetUnrealizedProfitLoss(
-                        PerformanceUnit.Currency,
-                        Order.IsLong
-                            ? Symbol.Bid
-                            : Symbol.Ask);
+                        PerformanceUnit.Currency, (NinjaOrder.IsLong ? Symbol.Bid : Symbol.Ask));
             }
         }
         //
@@ -126,7 +123,10 @@ namespace cAlgo.API
         // Summary:
         //     Entry time of trade associated with the position. The Timezone used is set in
         //     the cBot attribute.
-        // NT's Order entry time is start of new bar time, so we need to set it manually
+        // NT's NinjaOrder entry time is start of new bar time, so we need to set it manually
+
+        // NinjaTrader uses open time of the bar as entry time, so we need to set it with current time
+        //public DateTime EntryTime => NinjaOrder.Time;
         public DateTime EntryTime { get; internal set; }
 
         //
@@ -137,7 +137,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Label can be used to represent the order.
-        public string Label;
+        public string Label { get; internal set; }
 
         //
         // Summary:
@@ -147,13 +147,13 @@ namespace cAlgo.API
         //
         // Summary:
         //     Quantity of lots traded by the position.
-        public double Quantity => Order.Quantity;
+        public double Quantity => NinjaOrder.Quantity;
 
         //
         // Summary:
         //     When HasTrailingStop set to true, the server updates the Stop Loss every time
         //     the position moves in your favor.
-        public bool HasTrailingStop;
+        public bool HasTrailingStop => NinjaOrder.Stopwatch.IsRunning;
 
         //
         // Summary:
@@ -164,15 +164,13 @@ namespace cAlgo.API
         // Summary:
         //     The amount of used margin by the position.
         public double Margin;
-        private double mLastGrossProfit;
-        private double mLastNetProfit;
 
         //
         // Summary:
         //     Gets the position current market price. If Position's TradeType is Buy it returns
         //     Symbol current Bid price. If position's TradeType is Sell it returns Symbol current
         //     Ask price.
-        public double CurrentPrice => Order.IsLong
+        public double CurrentPrice => NinjaOrder.IsLong
                             ? Symbol.Bid
                             : Symbol.Ask;
 

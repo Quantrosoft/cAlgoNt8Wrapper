@@ -119,7 +119,7 @@ namespace cAlgo.API
         //
         // Returns:
         //     Position if it exists, null otherwise
-        public Position Find(string label) => mPositions.Where(p => p.Label.Split('|')[0] == label).FirstOrDefault();
+        public Position Find(string label) => mPositions.Where(p => p.Label == label).FirstOrDefault();
 
         //
         // Summary:

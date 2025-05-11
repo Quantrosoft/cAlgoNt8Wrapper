@@ -300,7 +300,7 @@ namespace cAlgo.API
         Stop,
         /// <summary>
         /// A stop limit order is an order to buy or sell once the price of the symbol reaches specific price.
-        /// Order has a parameter for maximum distance from that target price, where it can be executed.
+        /// NinjaOrder has a parameter for maximum distance from that target price, where it can be executed.
         /// </summary>
         /// <example>
         /// <code>
@@ -362,5 +362,57 @@ namespace cAlgo.API
         // Summary:
         //     The order fill was rejected and the order was cancelled.
         Rejected
+    }
+
+    //     Enumeration of standard error codes.
+    //
+    // Remarks:
+    //     Error codes are readable descriptions of the responses returned by the server.
+    public enum ErrorCode
+    {
+        //
+        // Summary:
+        //     A generic technical error with a trade request.
+        TechnicalError,
+        //
+        // Summary:
+        //     The volume value is not valid
+        BadVolume,
+        //
+        // Summary:
+        //     There are not enough money in the account to trade with.
+        NoMoney,
+        //
+        // Summary:
+        //     The market is closed.
+        MarketClosed,
+        //
+        // Summary:
+        //     The server is disconnected.
+        Disconnected,
+        //
+        // Summary:
+        //     Position does not exist.
+        EntityNotFound,
+        //
+        // Summary:
+        //     Operation timed out.
+        Timeout,
+        //
+        // Summary:
+        //     Unknown symbol.
+        UnknownSymbol,
+        //
+        // Summary:
+        //     The invalid Stop Loss or Take Profit.
+        InvalidStopLossTakeProfit,
+        //
+        // Summary:
+        //     The invalid request.
+        InvalidRequest,
+        //
+        // Summary:
+        //     Occurs when accessing trading API without trading permission.
+        NoTradingPermission
     }
 }

@@ -34,7 +34,7 @@ namespace cAlgo.API
         private StrategyRenderBase mStrategy;
         private Instrument mNinjaInstrument;
         public int Digits;
-        public int SymbolIsOnBarIndex;
+        public int SymbolBarIndex;
 
         public Symbol(Robot robot, Instrument ninjaInstrument)
         {

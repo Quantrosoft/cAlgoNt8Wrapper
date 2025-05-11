@@ -32,7 +32,7 @@ namespace cAlgo.API
         ////
         //// Summary:
         ////     The error code of an unsuccessful trade.
-        //public ErrorCode? Error { get; private set; }
+        public ErrorCode? Error { get; internal set; }
 
         ////
         //// Summary:
@@ -42,6 +42,6 @@ namespace cAlgo.API
         ////
         //// Summary:
         ////     The resulting pending order of a trade request.
-        //public PendingOrder PendingOrder { get; private set; }
+        public PendingOrder PendingOrder { get; internal set; }
     }
 }

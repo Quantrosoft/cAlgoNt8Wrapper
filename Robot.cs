@@ -26,13 +26,16 @@ using NinjaTrader.Core;
 using NinjaTrader.Data;
 using NinjaTrader.Gui.NinjaScript;
 using NinjaTrader.NinjaScript;
+using NinjaTrader.NinjaScript.Indicators;
 using RobotLib;
 using RobotLib.Cs;
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
 using TdsCommons;
 using static TdsDefs;
@@ -79,16 +82,12 @@ namespace cAlgo.API
         [Browsable(false)]
         [XmlIgnore]
         public new DateTime Time =>
-            //IsTickReplay
-            //? (null == mMarketDataEventArgs ? CoFu.TimeInvalid : mMarketDataEventArgs.Time)
-            //: 
+            IsTickReplay ? (null == mMarketDataEventArgs ? CoFu.TimeInvalid : mMarketDataEventArgs.Time) :
             Times[0][0];    // Nt primary data series is used as cTrader data series
         [Browsable(false)][XmlIgnore] public bool IsBacktesting => RunningMode != RunningMode.RealTime;
 
         private bool mDoTerminate;
         private bool mDoStart;
-        private Dictionary<NinjaTrader.Cbi.Instrument, MarketPosition> lastPositions
-            = new Dictionary<NinjaTrader.Cbi.Instrument, MarketPosition>();
         #endregion
 
         #region Start
@@ -158,7 +157,7 @@ namespace cAlgo.API
                     EntryHandling = EntryHandling.AllEntries;
                     IsFillLimitOnTouch = false;
                     MaximumBarsLookBack = MaximumBarsLookBack.TwoHundredFiftySix;
-                    OrderFillResolution = OrderFillResolution.Standard;
+                    OrderFillResolution = OrderFillResolution.High;
                     Slippage = 0;
                     StartBehavior = StartBehavior.WaitUntilFlat;
                     TimeInForce = TimeInForce.Gtc;
@@ -168,6 +167,7 @@ namespace cAlgo.API
                     // Disable this property for performance gains in Strategy Analyzer optimizations
                     // See the Help Guide for additional information
                     IsInstantiatedOnEachOptimizationIteration = true;
+                    IsUnmanaged = false;
 
                     OnSetDefaults();    // Call user's bot
                 }
@@ -310,6 +310,9 @@ namespace cAlgo.API
             mRobot.PostTick();
         }
 
+        // here we dispatch market orders and raise the corresponding events
+        // OnExecutionUpdate gives us IsEntry, IsExit, IsEntryStrategy, IsExitStrategy, 
+        // OnOrderUpdate does not
         protected override void OnExecutionUpdate(
             Execution execution,
             string executionId,
@@ -323,28 +326,31 @@ namespace cAlgo.API
             if (execution.Order == null || execution.Order.OrderState != OrderState.Filled)
                 return;
 
-            MarketPosition previous = lastPositions.ContainsKey(execution.Instrument)
-                ? lastPositions[execution.Instrument]
-                : MarketPosition.Flat;
-
-            // Detect transition from flat to non-flat = position opend
-            // FYI: Position = Positions[base.BarsInProgress] => each Bars can only have one open position = Netting
-            if (previous != MarketPosition.Flat && Position.MarketPosition == MarketPosition.Flat)
+            #region Market
+            if (execution.Order.IsMarket)
             {
-                var position = Positions.Where(p => p.SymbolName == execution.Instrument.FullName).FirstOrDefault();
-                if (null != position)
+                var position = Positions.Where(p => GetSignal(p.Label, p.Comment) == execution.Name).FirstOrDefault();
+                if (execution.IsEntry || execution.IsEntryStrategy)
                 {
-                    Positions.RaiseClosed(new PositionClosedEventArgs(position, PositionCloseReason.Closed));
-                    Positions.Remove(position);
+                    if (null != position)
+                        Positions.RaiseOpened(new PositionOpenedEventArgs(position));
                 }
-                else
-                { }
+                else if (execution.IsExit || execution.IsExitStrategy)
+                {
+                    if (null == position)
+                        // Automatically closed positions have special text in Label so we can use symbol only
+                        position = Positions.Where(p => p.Symbol.Name == execution.Instrument.FullName).FirstOrDefault();
+                    if (null != position)
+                    {
+                        Positions.RaiseClosed(new PositionClosedEventArgs(position, PositionCloseReason.Closed));
+                        Positions.Remove(position);
+                    }
+                }
             }
-
-            // Update the tracking dictionary
-            lastPositions[execution.Instrument] = Position.MarketPosition;
+            #endregion
         }
 
+        // here we dispatch limit orders and raise the corresponding events
         protected override void OnOrderUpdate(
             NinjaTrader.Cbi.Order order,
             double limitPrice,
@@ -354,9 +360,81 @@ namespace cAlgo.API
             double averageFillPrice,
             OrderState orderState,
             DateTime time,
-            ErrorCode error,
+            NinjaTrader.Cbi.ErrorCode error,
             string comment)
         {
+            // Ignore these
+            if (OrderState.Submitted == orderState
+                    || OrderState.Accepted == orderState
+                    || OrderState.CancelPending == orderState
+                    || OrderState.CancelSubmitted == orderState
+                )
+                return;
+
+            if (order.IsLimit)
+            {
+                // Test if it is an opening pending order
+                var pendingOrder = PendingOrders.Where(p => GetSignal(p.Label, p.Comment) == order.Name).FirstOrDefault();
+                if (null != pendingOrder)
+                {
+                    // From Ninja website:
+                    // Assign entryOrder in OnOrderUpdate() to ensure the assignment occurs when expected.
+                    // This is more reliable than assigning NinjaOrder objects in OnBarUpdate, as the assignment
+                    // is not gauranteed to be complete if it is referenced immediately after submitting
+                    pendingOrder.NinjaOrder = order;
+
+                    switch (orderState)
+                    {
+                        // Limit order is active and waiting for the limit price to be reached
+                        case OrderState.Working:
+                        PendingOrders.RaiseCreated(new PendingOrderCreatedEventArgs(pendingOrder));
+                        break;
+
+                        // Limit order has been cancelled
+                        case OrderState.Cancelled:
+                        PendingOrders.RaiseCancelled(new PendingOrderCancelledEventArgs(pendingOrder,
+                            PendingOrderCancellationReason.Cancelled));
+                        PendingOrders.Remove(pendingOrder);
+                        break;
+
+                        // Limit order has reached the limit price and is now active similar to a market order
+                        case OrderState.Filled:
+                        var position = new Position(this, order)
+                        {
+                            // EntryPrice is not set but comes from => NinjaOrder.AverageFillPrice;
+                            // TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
+                            // Label NinjaOrder=>Name;
+                            // HasTrailingStop => NinjaOrder.Stopwatch.IsRunning; 
+                            EntryTime = Time,
+                            Label = pendingOrder.Label,
+                            Comment = pendingOrder.Comment,
+                            StopLoss = pendingOrder.StopLoss,
+                            TakeProfit = pendingOrder.TakeProfit,
+                            Swap = 0,
+                            Pips = 0,
+                            Margin = 0,
+                        };
+
+                        PendingOrders.RaiseFilled(new PendingOrderFilledEventArgs(pendingOrder, position));
+                        PendingOrders.Remove(pendingOrder);
+                        Positions.Add(position);
+                        Positions.RaiseOpened(new PositionOpenedEventArgs(position));
+                        break;
+                    }
+                    return;
+                }
+
+                // Test if it is a closing pending order
+                if (OrderState.Filled == orderState)
+                {
+                    var position = Positions.Where(p => GetSignal(p.Label, p.Comment) == order.Name).FirstOrDefault();
+                    if (null != position)
+                    {
+                        Positions.RaiseClosed(new PositionClosedEventArgs(position, PositionCloseReason.Closed));
+                        Positions.Remove(position);
+                    }
+                }
+            }
         }
         #endregion
 
@@ -369,62 +447,47 @@ namespace cAlgo.API
             double? takeProfitPips,
             string comment)
         {
-            double? stopPrice = null;
-            double? targetPrice = null;
-
-            var botSymbol = Symbols.GetSymbol(symbolName);
-            var currentClosePrice = tradeType == TradeType.Buy ? botSymbol.Bid : botSymbol.Ask;
-
             NinjaTrader.Cbi.Order order = null;
-            var signal = label + "|" + comment;
-            if (tradeType == TradeType.Buy)
+            double? stopPrice = null;
+            double? tpPrice = null;
+            var botSymbol = Symbols.GetSymbol(symbolName);
+            var signal = GetSignal(label, comment);
+            var isLong = tradeType == TradeType.Buy;
+            var currentClosePrice = isLong ? botSymbol.Bid : botSymbol.Ask;
+
+            // store label + comment in the order for later restart
+            order = isLong
+                ? EnterLong((int)volume, signal)
+                : EnterShort((int)volume, signal);
+
+            if (null != stopLossPips && 0 != stopLossPips)
             {
-                // store label + comment in the order for later restart
-                order = EnterLong((int)volume, signal);
-
-                if (null != stopLossPips && 0 != stopLossPips)
-                {
-                    stopPrice = currentClosePrice - (double)stopLossPips * TickSize;
-                    SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
-                }
-
-                if (null != takeProfitPips && 0 != takeProfitPips)
-                {
-                    targetPrice = currentClosePrice + (double)takeProfitPips * TickSize;
-                    SetProfitTarget(signal, CalculationMode.Price, (double)targetPrice);
-                }
+                stopPrice = CoFu.SubLong(isLong, currentClosePrice, (double)stopLossPips * 10 * TickSize);
+                SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
             }
-            else // TradeType.Sell
-            {
-                // store label + comment in the order for later restart
-                order = EnterShort((int)volume, signal);
-                if (null != stopLossPips && 0 != stopLossPips)
-                {
-                    stopPrice = currentClosePrice + (double)stopLossPips * TickSize;
-                    SetStopLoss(label, CalculationMode.Price, (double)stopPrice, false);
-                }
 
-                if (null != takeProfitPips && 0 != takeProfitPips)
-                {
-                    targetPrice = currentClosePrice - (double)takeProfitPips * TickSize;
-                    SetProfitTarget(signal, CalculationMode.Price, (double)targetPrice);
-                }
+            if (null != takeProfitPips && 0 != takeProfitPips)
+            {
+                tpPrice = CoFu.AddLong(isLong, currentClosePrice, (double)takeProfitPips * 10 * TickSize);
+                SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
             }
 
             var position = new Position(this, order)
             {
+                // EntryPrice is not set but comes from => NinjaOrder.AverageFillPrice;
+                // TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
+                // HasTrailingStop => NinjaOrder.Stopwatch.IsRunning; 
                 EntryTime = Time,
+                Label = label,
                 Comment = comment,
-                Label = signal,
                 Swap = 0,                              // Not tracked by NinjaTrader by default
                 StopLoss = null,                       // If you set SL/TP, track externally
                 TakeProfit = null,
                 Pips = 0,
                 Margin = 0,
-                HasTrailingStop = false
             };
+
             Positions.Add(position);
-            Positions.RaiseOpened(new PositionOpenedEventArgs(position));
             return new TradeResult() { Position = position, IsSuccessful = true };
         }
 
@@ -438,67 +501,56 @@ namespace cAlgo.API
             DateTime? expiration,
             string comment)
         {
+            NinjaTrader.Cbi.Order order = null;
             double? stopPrice = null;
             double? tpPrice = null;
-
             var botSymbol = Symbols.GetSymbol(symbolName);
-            var currentClosePrice = tradeType == TradeType.Buy ? botSymbol.Bid : botSymbol.Ask;
+            var signal = GetSignal(label, comment);
+            var isLong = tradeType == TradeType.Buy;
+            var currentClosePrice = isLong ? botSymbol.Bid : botSymbol.Ask;
 
-            NinjaTrader.Cbi.Order order = null;
-            var signal = label + "|" + comment;
-            if (tradeType == TradeType.Buy)
+            // In OnOrderUpdate() EnterxLimit() generates Submitted => Accepted => Working
+            // and then after the limit price is reached: Filled
+            // "Working" means the order is pending and waiting for the limit price to be reached
+            // We must add the order to the PendingOrders list BEFORE we call EnterxLimit()
+            // so that we can handle it in OnOrderUpdate()
+            var pendingOrder = new PendingOrder(this, order)
             {
-                // public Order EnterLongLimit(int barsInProgressIndex, bool isLiveUntilCancelled, int quantity, double limitPrice, string signalName)
-                order = EnterLongLimit(botSymbol.SymbolIsOnBarIndex,
-                    true,
-                    (int)volume,
-                    limitPrice,
-                    signal);
-
-                if (null != stopLossPips && 0 != stopLossPips)
-                {
-                    stopPrice = currentClosePrice - (double)stopLossPips * TickSize;
-                    SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
-                }
-
-                if (null != takeProfitPips && 0 != takeProfitPips)
-                {
-                    tpPrice = currentClosePrice + (double)takeProfitPips * TickSize;
-                    SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
-                }
-            }
-            else // TradeType.Sell
-            {
-                order = EnterShortLimit(botSymbol.SymbolIsOnBarIndex,
-                    true,
-                    (int)volume,
-                    limitPrice,
-                    signal);
-                if (null != stopLossPips && 0 != stopLossPips)
-                {
-                    stopPrice = currentClosePrice + (double)stopLossPips * TickSize;
-                    SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
-                }
-
-                if (null != takeProfitPips && 0 != takeProfitPips)
-                {
-                    tpPrice = currentClosePrice - (double)takeProfitPips * TickSize;
-                    SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
-                }
-            }
-
-            var position = new Position(this, order)
-            {
-                EntryTime = Time,
+                // TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
                 Comment = comment,
-                Label = signal,
-                Swap = 0,                              // Not tracked by NinjaTrader by default
-                StopLoss = null,                       // If you set SL/TP, track externally
-                TakeProfit = null,
-                Pips = 0,
-                Margin = 0,
-                HasTrailingStop = false
+                Label = label,
+                StopLoss = stopPrice,
+                StopLossPips = stopLossPips,
+                TakeProfit = tpPrice,
+                TakeProfitPips = takeProfitPips,
+                HasTrailingStop = false,
+                OrderType = PendingOrderType.Limit,
+                StopOrderTriggerMethod = null,
+                StopLimitRangePips = null,
+                StopLossTriggerMethod = null,
+                TargetPrice = limitPrice,
+                ExpirationTime = expiration,
             };
+
+            PendingOrders.Add(pendingOrder);
+
+            // NinjaOrder EnterLongLimit(int barsInProgressIndex, bool isLiveUntilCancelled, int quantity, double limitPrice, string signalName)
+            // The limit order lives til end of day or til canceled
+            order = isLong
+                ? EnterLongLimit(botSymbol.SymbolBarIndex, true, (int)volume, limitPrice, signal)
+                : EnterShortLimit(botSymbol.SymbolBarIndex, true, (int)volume, limitPrice, signal);
+
+            if (null != stopLossPips && 0 != stopLossPips)
+            {
+                stopPrice = CoFu.SubLong(isLong, currentClosePrice, (double)stopLossPips * 10 * TickSize);
+                SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
+            }
+
+            if (null != takeProfitPips && 0 != takeProfitPips)
+            {
+                tpPrice = CoFu.AddLong(isLong, currentClosePrice, (double)takeProfitPips * 10 * TickSize);
+                SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
+            }
 
             return new TradeResult() { IsSuccessful = false, };
         }
@@ -558,12 +610,30 @@ namespace cAlgo.API
             };
             History.Add(histPos);
 
+            var signal = GetSignal(position.Label, position.Comment);
             if (position.TradeType == TradeType.Buy)
-                ExitLong((int)position.Quantity, position.Label, position.Label);
+            {
+                if (position.GrossProfit > 0)
+                    ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                else
+                    ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
+            }
             else
-                ExitShort((int)position.Quantity, position.Label, position.Label);
+            {
+                if (position.GrossProfit > 0)
+                    ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                else
+                    ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
+            }
 
             return new TradeResult() { IsSuccessful = true };
+        }
+
+        // Since NinjaTrader does not support separate label and comment,
+        // we add the via a '|' separator and use this as a signal name
+        internal string GetSignal(string label, string comment)
+        {
+            return label + "|" + comment;
         }
 
         public void Stop() => throw new Exception("Bot stoped");

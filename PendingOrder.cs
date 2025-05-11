@@ -21,6 +21,7 @@ SOFTWARE.
 */
 
 using NinjaTrader.Cbi;
+using NinjaTrader.Gui.NinjaScript;
 using System;
 using System.Collections.Generic;
 
@@ -28,13 +29,15 @@ namespace cAlgo.API
 {
     public class PendingOrder
     {
-        public Order Order;
+        internal Order NinjaOrder;
         private Robot mRobot;
+        private StrategyRenderBase mStrategy;
 
         public PendingOrder(Robot robot, Order order)
         {
-            mRobot = robot;
-            Order = order;
+            mRobot = robot;     // whole robot class
+            mStrategy = robot;  // just the NinjaTrader base class
+            NinjaOrder = order;
         }
 
         /// <summary>Specifies whether this order is to buy or sell.</summary>
@@ -44,7 +47,7 @@ namespace cAlgo.API
         /// Print(LastResult.PendingOrder.TradeType);
         /// </code>
         /// </example>
-        public TradeType TradeType { get; set; }
+        public TradeType TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
 
         /// <summary>Volume of this order.</summary>
         /// <example>
@@ -54,7 +57,7 @@ namespace cAlgo.API
         /// Print("The order's volume is: {0}", order.VolumeInUnits);
         ///  </code>
         /// </example>
-        public double VolumeInUnits { get; set; }
+        public double VolumeInUnits => NinjaOrder.Quantity;
 
         /// <summary>Unique order Id.</summary>
         /// <example>
@@ -64,17 +67,17 @@ namespace cAlgo.API
         /// Print("The pending order's ID: {0}", order.Id);
         /// </code>
         /// </example>
-        public int Id { get; set; }
+        public int Id => NinjaOrder.OrderId.GetHashCode();
 
         /// <summary>Specifies whether this order is Stop or Limit.</summary>
         /// <example>
         /// <code>
         /// var result = PlaceLimitOrder(TradeType.Buy, SymbolName, 10000, targetPrice);
         /// var order = result.PendingOrder;
-        /// Print("Order type = {0}", order.OrderType);
+        /// Print("NinjaOrder type = {0}", order.OrderType);
         /// </code>
         /// </example>
-        public PendingOrderType OrderType { get; set; }
+        public PendingOrderType OrderType { get; internal set; }
 
         /// <summary>The order target price.</summary>
         /// <example>
@@ -83,7 +86,7 @@ namespace cAlgo.API
         /// var result = PlaceLimitOrder(TradeType.Buy, SymbolName, 10000, targetPrice);
         /// </code>
         /// </example>
-        public double TargetPrice { get; set; }
+        public double TargetPrice { get; internal set; }
 
         /// <summary>
         /// The order Expiration time
@@ -96,7 +99,7 @@ namespace cAlgo.API
         ///     SymbolName.Bid, null, 10, 10, expiration);
         /// </code>
         /// </example>
-        public DateTime? ExpirationTime { get; set; }
+        public DateTime? ExpirationTime { get; internal set; }
 
         /// <summary>The order stop loss in price</summary>
         /// <example>
@@ -105,10 +108,10 @@ namespace cAlgo.API
         /// SymbolName.Bid, null, 10, 10);
         /// 
         /// var order = result.PendingOrder;
-        /// Print("Order SL price = {0}", order.StopLoss);
+        /// Print("NinjaOrder SL price = {0}", order.StopLoss);
         /// </code>
         /// </example>
-        public double? StopLoss { get; set; }
+        public double? StopLoss { get; internal set; }
 
         /// <summary>The order stop loss in pips</summary>
         /// <example>
@@ -117,10 +120,10 @@ namespace cAlgo.API
         ///                     SymbolName.Bid, null, 10, 10);
         /// 
         /// var order = result.PendingOrder;
-        /// Print("Order SL pips = {0}", order.StopLossPips);
+        /// Print("NinjaOrder SL pips = {0}", order.StopLossPips);
         /// </code>
         /// </example>
-        public double? StopLossPips { get; set; }
+        public double? StopLossPips { get; internal set; }
 
         /// <summary>The order take profit in price</summary>
         /// <example>
@@ -129,10 +132,10 @@ namespace cAlgo.API
         /// SymbolName.Bid, null, 10, 10);
         /// 
         /// var order = result.PendingOrder;
-        /// Print("Order TP price = {0}", order.TakeProfit);
+        /// Print("NinjaOrder TP price = {0}", order.TakeProfit);
         /// </code>
         /// </example>
-        public double? TakeProfit { get; set; }
+        public double? TakeProfit { get; internal set; }
 
         /// <summary>The order take profit in pips</summary>
         /// <example>
@@ -144,7 +147,7 @@ namespace cAlgo.API
         /// Print("TP Pips = {0}", order.TakeProfitPips);
         /// </code>
         /// </example>
-        public double? TakeProfitPips { get; set; }
+        public double? TakeProfitPips { get; internal set; }
 
         /// <summary>User assigned identifier for the order.</summary>
         /// <example>
@@ -159,9 +162,9 @@ namespace cAlgo.API
         /// }
         /// </code>
         /// </example>
-        public string Label { get; set; }
+        public string Label { get; internal set; }
 
-        /// <summary>User assigned Order Comment</summary>
+        /// <summary>User assigned NinjaOrder Comment</summary>
         /// <example>
         /// <code>
         /// var result = PlaceLimitOrder(TradeType.Buy, SymbolName, 10000,
@@ -170,10 +173,10 @@ namespace cAlgo.API
         /// Print("comment = {0}", order.Comment);
         /// </code>
         /// </example>
-        public string Comment { get; set; }
+        public string Comment { get; internal set; }
 
         /// <summary>Quantity (lots) of this order</summary>
-        public double Quantity { get; set; }
+        public double Quantity => NinjaOrder.Quantity;
 
         /// <summary>
         /// When HasTrailingStop set to true,
@@ -209,12 +212,12 @@ namespace cAlgo.API
         /// <summary>Gets the symbol name.</summary>
         /// <value></value>
         /// <remarks></remarks>
-        public string SymbolName { get; set; }
+        public string SymbolName => NinjaOrder.Instrument.FullName;
 
         /// <summary>
         /// Shortcut for Robot.ModifyPendingOrder method to change Stop Loss
         /// </summary>
-        public TradeResult ModifyStopLossPips(double? stopLossPips) 
+        public TradeResult ModifyStopLossPips(double? stopLossPips)
         {
             return null;
         }
@@ -263,7 +266,13 @@ namespace cAlgo.API
         /// <returns></returns>
         public TradeResult Cancel()
         {
-            return null;
+            mStrategy.CancelOrder(NinjaOrder);
+            return new TradeResult()
+            {
+                IsSuccessful = true,
+                Position = null,
+                PendingOrder = this
+            };
         }
     }
 }

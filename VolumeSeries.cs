@@ -32,14 +32,14 @@ namespace cAlgo.API
         // With TickReplay we use our own Ringbuffer
         private Ringbuffer<long> mTickReplayData;
         // Without TickReplay we redirect directly to Ninja series
-        private NinjaTrader.NinjaScript.VolumeSeries[] mNinjaVolumeSeriesArray;
+        private NinjaTrader.NinjaScript.VolumeSeries mNinjaVolumeSeries;
         private long mAskVolume;
         private long mBidVolume;
 
-        public VolumeSeries(Bars bars, NinjaTrader.NinjaScript.VolumeSeries[] ninjaVolumeSeriesArray)
+        public VolumeSeries(Bars bars, NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries)
         {
             mBars = bars;
-            mNinjaVolumeSeriesArray = ninjaVolumeSeriesArray;
+            mNinjaVolumeSeries = ninjaVolumeSeries;
             mTickReplayData = new Ringbuffer<long>(Bars.TickReplaySize);
         }
 
@@ -77,7 +77,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Indicates the number total number of values in the VolumeSeries array.
-        public int Count => mNinjaVolumeSeriesArray[mBars.BidBarsIndex].Count;
+        public int Count => mNinjaVolumeSeries.Count;
 
         //
         // Summary:
@@ -101,8 +101,8 @@ namespace cAlgo.API
                 if (0 == index)
                     return 0;
                 else
-                    return (long)mNinjaVolumeSeriesArray[mBars.AskBarsIndex][index] << 34
-                        | (long)mNinjaVolumeSeriesArray[mBars.BidBarsIndex][index] << 2;
+                    return (long)mNinjaVolumeSeries[index] << 34
+                        | (long)mNinjaVolumeSeries[index] << 2;
             }
         }
 

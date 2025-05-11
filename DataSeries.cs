@@ -37,14 +37,14 @@ namespace cAlgo.API
         // With TickReplay we use our own Ringbuffer
         private Ringbuffer<double> mTickReplayData;
         // Without TickReplay we redirect directly to Ninja series
-        private NinjaTrader.NinjaScript.PriceSeries[] mNinjaDataSeriesArray;
+        private NinjaTrader.NinjaScript.PriceSeries mNinjaDataSeries;
 
         public DataSeries(Bars bars, Symbol symbol,
-            NinjaTrader.NinjaScript.PriceSeries[] ninjaDataSeriesArray)
+            NinjaTrader.NinjaScript.PriceSeries ninjaDataSeries)
         {
             mBars = bars;
             mSymbol = symbol;
-            mNinjaDataSeriesArray = ninjaDataSeriesArray;
+            mNinjaDataSeries = ninjaDataSeries;
             mTickReplayData = new Ringbuffer<double>(Bars.TickReplaySize);
         }
 
@@ -53,7 +53,7 @@ namespace cAlgo.API
             if (mBars.IsNewBar || 0 == mTickReplayData.Count)
                 mTickReplayData.Add(args.Bid);
 
-            switch (mNinjaDataSeriesArray[0].PriceType) // all series have the same PriceType
+            switch (mNinjaDataSeries.PriceType) // all series have the same PriceType
             {
                 case PriceType.High:
                 mTickReplayData.Swap(Math.Max(mTickReplayData[0], args.Bid));
@@ -92,7 +92,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Gets the total number of elements contained in the DataSeries.
-        public int Count => mNinjaDataSeriesArray[mBars.BidBarsIndex].Count;
+        public int Count => mNinjaDataSeries.Count;
 
         //
         // Summary:
@@ -111,7 +111,7 @@ namespace cAlgo.API
                 if (0 == index)
                     return mSymbol.Bid;
                 else
-                    return mNinjaDataSeriesArray[mBars.BidBarsIndex][index];
+                    return mNinjaDataSeries[index];
             }
         }
     }

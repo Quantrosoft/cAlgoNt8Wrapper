@@ -33,12 +33,12 @@ namespace cAlgo.API
         // With TickReplay we use our own Ringbuffer
         private Ringbuffer<DateTime> mTickReplayData;
         // Without TickReplay we redirect directly to Ninja series
-        private NinjaTrader.NinjaScript.TimeSeries[] mNinjaTimeSeries;
+        private NinjaTrader.NinjaScript.TimeSeries mNinjaTimeSeries;
 
-        public TimeSeries(Bars bars, NinjaTrader.NinjaScript.TimeSeries[] timeSeriesArray)
+        public TimeSeries(Bars bars, NinjaTrader.NinjaScript.TimeSeries timeSeries)
         {
             mBars = bars;
-            mNinjaTimeSeries = timeSeriesArray;
+            mNinjaTimeSeries = timeSeries;
             mTickReplayData = new Ringbuffer<DateTime>(Bars.TickReplaySize);
         }
 
@@ -69,7 +69,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Gets the number of elements contained in the series.
-        public int Count => mNinjaTimeSeries[0].Count;
+        public int Count => mNinjaTimeSeries.Count;
 
         //
         // Summary:
@@ -86,7 +86,7 @@ namespace cAlgo.API
                 return (nativeTime - (nativeTime % mBars.BarsSeconds)).FromNativeSec();
             }
             else
-                return mNinjaTimeSeries[mBars.BidBarsIndex][index];
+                return mNinjaTimeSeries[index];
         }
     }
 }

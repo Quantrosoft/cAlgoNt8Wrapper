@@ -123,14 +123,14 @@ namespace cAlgo.API
                     }
 
                     var symbol = Robot.Symbols.SymbolDictionary[mSymbolName];
-                    OpenTimes = new TimeSeries(this, Robot.Times);
-                    OpenPrices = new DataSeries(this, symbol, Robot.Opens);
-                    HighPrices = new DataSeries(this, symbol, Robot.Highs);
-                    LowPrices = new DataSeries(this, symbol, Robot.Lows);
-                    ClosePrices = new DataSeries(this, symbol, Robot.Closes);
-                    TickVolumes = new VolumeSeries(this, Robot.Volumes);
+                    OpenTimes = new TimeSeries(this, Robot.Times[i]);
+                    OpenPrices = new DataSeries(this, symbol, Robot.Opens[i]);
+                    HighPrices = new DataSeries(this, symbol, Robot.Highs[i]);
+                    LowPrices = new DataSeries(this, symbol, Robot.Lows[i]);
+                    ClosePrices = new DataSeries(this, symbol, Robot.Closes[i]);
+                    TickVolumes = new VolumeSeries(this, Robot.Volumes[i]);
 
-                    symbol.SymbolIsOnBarIndex = i;
+                    symbol.SymbolBarIndex = i;
                 }
             }
         }
@@ -139,9 +139,6 @@ namespace cAlgo.API
         {
             IsNewBar = CoFu.IsNewBar(BarsSeconds, args.Time, mPrevTime)
                 || mPrevTime <= CoFu.TimeInvalid;
-
-            if (IsNewBar)
-            { }
 
             OpenTimes.OnMarketData(args);
             OpenPrices.OnMarketData(args);
