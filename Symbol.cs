@@ -22,6 +22,8 @@ SOFTWARE.
 
 using NinjaTrader.Cbi;
 using NinjaTrader.Gui.NinjaScript;
+using NinjaTrader.NinjaScript;
+using NinjaTrader.NinjaScript.Strategies;
 using System;
 
 namespace cAlgo.API
@@ -32,7 +34,7 @@ namespace cAlgo.API
         private StrategyRenderBase mStrategy;
         private Instrument mNinjaInstrument;
         public int Digits;
-        public int BarsInProgressIndex;
+        public int SymbolIsOnBarIndex;
 
         public Symbol(Robot robot, Instrument ninjaInstrument)
         {
@@ -43,15 +45,6 @@ namespace cAlgo.API
             {
                 tickSize *= 10;
                 Digits++;
-            }
-
-            for (int i = 0; i < mStrategy.BarsArray.Length; i++)
-            {
-                if (mStrategy.BarsArray[i].Instrument.FullName == mNinjaInstrument.FullName)
-                {
-                    BarsInProgressIndex = i;
-                    break;
-                }
             }
         }
 
@@ -123,7 +116,7 @@ namespace cAlgo.API
         public double VolumeInUnitsMax => 100;
 
         public double VolumeInUnitsStep => VolumeInUnitsMin;
-
+        
         //     Convert Volume in units of base currency to Quantity (in lots).
         //
         // Parameters:

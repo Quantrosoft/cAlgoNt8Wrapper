@@ -129,6 +129,8 @@ namespace cAlgo.API
                     LowPrices = new DataSeries(this, symbol, Robot.Lows);
                     ClosePrices = new DataSeries(this, symbol, Robot.Closes);
                     TickVolumes = new VolumeSeries(this, Robot.Volumes);
+
+                    symbol.SymbolIsOnBarIndex = i;
                 }
             }
         }

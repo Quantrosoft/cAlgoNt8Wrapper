@@ -23,7 +23,6 @@ SOFTWARE.
 using cAlgo.API.Internals;
 using NinjaTrader.Cbi;
 using NinjaTrader.Core;
-using NinjaTrader.CQG.ProtoBuf;
 using NinjaTrader.Data;
 using NinjaTrader.Gui.NinjaScript;
 using NinjaTrader.NinjaScript;
@@ -79,9 +78,11 @@ namespace cAlgo.API
         };
         [Browsable(false)]
         [XmlIgnore]
-        public new DateTime Time => IsTickReplay
-            ? (null == mMarketDataEventArgs ? CoFu.TimeInvalid : mMarketDataEventArgs.Time)
-            : Times[0][0];
+        public new DateTime Time =>
+            //IsTickReplay
+            //? (null == mMarketDataEventArgs ? CoFu.TimeInvalid : mMarketDataEventArgs.Time)
+            //: 
+            Times[0][0];    // Nt primary data series is used as cTrader data series
         [Browsable(false)][XmlIgnore] public bool IsBacktesting => RunningMode != RunningMode.RealTime;
 
         private bool mDoTerminate;
@@ -271,21 +272,24 @@ namespace cAlgo.API
             // when having several symbols
             mMarketDataEventArgs = args;
 
-            // we have to postpone OnStart tile here because earlier we do not have a valid Time
-            if (mDoStart)
+            // we have to postpone OnStart etc, til here because earlier we do not have a valid Time
+            if (CurrentBar >= 0)
             {
-                OnStart();  // Call user's bot init 2nd time OnStart
-                mDoStart = false;
+                if (mDoStart)
+                {
+                    OnStart();  // Call user's bot OnStart
+                    mDoStart = false;
+                }
+
+                // Update the bars with the new market data
+                foreach (var bar in MarketData.BarsDictionary)
+                    bar.Value.OnMarketData(args);
+
+                // Call user bot
+                mRobot.PreTick();
+                OnTick();
+                mRobot.PostTick();
             }
-
-            // Update the bars with the new market data
-            foreach (var bar in MarketData.BarsDictionary)
-                bar.Value.OnMarketData(args);
-
-            // Call user bot
-            mRobot.PreTick();
-            OnTick();
-            mRobot.PostTick();
         }
 
         protected override void OnBarUpdate()
@@ -323,17 +327,18 @@ namespace cAlgo.API
                 ? lastPositions[execution.Instrument]
                 : MarketPosition.Flat;
 
-            // Detect transition from non-flat to flat = position closed
+            // Detect transition from flat to non-flat = position opend
             // FYI: Position = Positions[base.BarsInProgress] => each Bars can only have one open position = Netting
             if (previous != MarketPosition.Flat && Position.MarketPosition == MarketPosition.Flat)
             {
-                // Cannot use label|comment beacause Order.Name can also be "Exit on Session Close"
                 var position = Positions.Where(p => p.SymbolName == execution.Instrument.FullName).FirstOrDefault();
                 if (null != position)
                 {
                     Positions.RaiseClosed(new PositionClosedEventArgs(position, PositionCloseReason.Closed));
                     Positions.Remove(position);
                 }
+                else
+                { }
             }
 
             // Update the tracking dictionary
@@ -392,7 +397,7 @@ namespace cAlgo.API
             else // TradeType.Sell
             {
                 // store label + comment in the order for later restart
-                order = EnterShort((int)volume, signal + "|" + comment);
+                order = EnterShort((int)volume, signal);
                 if (null != stopLossPips && 0 != stopLossPips)
                 {
                     stopPrice = currentClosePrice + (double)stopLossPips * TickSize;
@@ -411,17 +416,15 @@ namespace cAlgo.API
                 EntryTime = Time,
                 Comment = comment,
                 Label = signal,
-                Swap = 0,
-                StopLoss = null,
+                Swap = 0,                              // Not tracked by NinjaTrader by default
+                StopLoss = null,                       // If you set SL/TP, track externally
                 TakeProfit = null,
                 Pips = 0,
                 Margin = 0,
-                HasTrailingStop = false,
+                HasTrailingStop = false
             };
-
             Positions.Add(position);
             Positions.RaiseOpened(new PositionOpenedEventArgs(position));
-
             return new TradeResult() { Position = position, IsSuccessful = true };
         }
 
@@ -446,7 +449,7 @@ namespace cAlgo.API
             if (tradeType == TradeType.Buy)
             {
                 // public Order EnterLongLimit(int barsInProgressIndex, bool isLiveUntilCancelled, int quantity, double limitPrice, string signalName)
-                order = EnterLongLimit(botSymbol.BarsInProgressIndex,
+                order = EnterLongLimit(botSymbol.SymbolIsOnBarIndex,
                     true,
                     (int)volume,
                     limitPrice,
@@ -466,7 +469,7 @@ namespace cAlgo.API
             }
             else // TradeType.Sell
             {
-                order = EnterShortLimit(botSymbol.BarsInProgressIndex,
+                order = EnterShortLimit(botSymbol.SymbolIsOnBarIndex,
                     true,
                     (int)volume,
                     limitPrice,
@@ -484,28 +487,20 @@ namespace cAlgo.API
                 }
             }
 
-            var pendingOrder = new PendingOrder(this, order)
+            var position = new Position(this, order)
             {
+                EntryTime = Time,
                 Comment = comment,
                 Label = signal,
-                StopLoss = stopPrice,    
-                TakeProfit = tpPrice,
-                HasTrailingStop = false,
-                StopLossTriggerMethod = null,
-                StopOrderTriggerMethod = null,
-                StopLimitRangePips = null,
-                ExpirationTime = expiration,
-                VolumeInUnits = volume,
-                TargetPrice = limitPrice,
-                TradeType = tradeType,
-                SymbolName = symbolName,
-                Quantity = volume,
+                Swap = 0,                              // Not tracked by NinjaTrader by default
+                StopLoss = null,                       // If you set SL/TP, track externally
+                TakeProfit = null,
+                Pips = 0,
+                Margin = 0,
+                HasTrailingStop = false
             };
 
-            PendingOrders.Add(pendingOrder);
-            PendingOrders.RaiseCreated(new PendingOrderCreatedEventArgs(pendingOrder));
-
-            return new TradeResult() { IsSuccessful = true, };
+            return new TradeResult() { IsSuccessful = false, };
         }
 
         // Summary:
@@ -563,13 +558,10 @@ namespace cAlgo.API
             };
             History.Add(histPos);
 
-            // labelComment must be same as in ExecuteMarketOrder
-            var labelComment = position.Label + "|" + position.Comment;
-
             if (position.TradeType == TradeType.Buy)
-                ExitLong((int)position.Quantity, labelComment, labelComment);
+                ExitLong((int)position.Quantity, position.Label, position.Label);
             else
-                ExitShort((int)position.Quantity, labelComment, labelComment);
+                ExitShort((int)position.Quantity, position.Label, position.Label);
 
             return new TradeResult() { IsSuccessful = true };
         }

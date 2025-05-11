@@ -34,15 +34,6 @@
      <None Remove="LICENSE.txt" />
    </ItemGroup>
    <ItemGroup>
-     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\AbstractRobot.cs" Link="Shared\RobotLib\AbstractRobot.cs" />
-     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\CS\CsLogger.cs" Link="Shared\RobotLib\CsLogger.cs" />
-     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\CS\CsRobot.cs" Link="Shared\RobotLib\CsRobot.cs" />
-     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\CS\CSRobotFactory.cs" Link="Shared\RobotLib\CSRobotFactory.cs" />
-     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\ILogger.cs" Link="Shared\RobotLib\ILogger.cs" />
-     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\IRobot.cs" Link="Shared\RobotLib\IRobot.cs" />
-     <Compile Include="..\..\..\source\TDS2.0\Libs\RobotLib\IRobotFactory.cs" Link="Shared\RobotLib\IRobotFactory.cs" />
-   </ItemGroup>
-   <ItemGroup>
      <Reference Include="NinjaTrader.Core">
        <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\NinjaTrader.Core.dll</HintPath>
      </Reference>
@@ -68,7 +59,7 @@
      <Reference Include="System.IO.Compression" />
    </ItemGroup>
    <ItemGroup>
-     <Folder Include="Shared\RobotLib\" />
+     <Folder Include="Shared\RobotLib\Shared\" />
    </ItemGroup>
    <ItemGroup>
      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
@@ -77,4 +68,7 @@
    <ItemGroup>
      <ProjectReference Include="..\..\..\source\TDS2.0\Libs\TdsCommons\TdsCommons.csproj" />
    </ItemGroup>
+   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+     <Exec Command="xcopy /y &quot;C:\Users\HMz\Documents\NinjaTrader 8\bin\Custom\cAlgoNt8\*.cs&quot; &quot;$(ProjectDir)&quot;&#xD;&#xA;xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\cs\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;" />
+   </Target>
 </Project>
