@@ -2,7 +2,6 @@
 using System;
 using System.IO;
 using TdsCommons;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace RobotLib.Cs
 {
