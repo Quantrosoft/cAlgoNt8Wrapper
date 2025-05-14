@@ -53,7 +53,7 @@ namespace cAlgo.API
             get
             {
                 if (mRobot.IsTickReplay)
-                    return mRobot.mMarketDataEventArgs.Bid;
+                    return mRobot.MarketDataEventArgs.Bid;
                 else
                     return mRobot.Opens[0][0];
             }
@@ -64,7 +64,7 @@ namespace cAlgo.API
             get
             {
                 if (mRobot.IsTickReplay)
-                    return mRobot.mMarketDataEventArgs.Ask;
+                    return mRobot.MarketDataEventArgs.Ask;
                 else
                     return mRobot.Opens[1][0];
             }
@@ -74,7 +74,7 @@ namespace cAlgo.API
         {
             get
             {
-                return mRobot.mMarketDataEventArgs.Volume;
+                return mRobot.MarketDataEventArgs.Volume;
             }
         }
 
@@ -82,7 +82,7 @@ namespace cAlgo.API
         {
             get
             {
-                return mRobot.mMarketDataEventArgs.Price;
+                return mRobot.MarketDataEventArgs.Price;
             }
         }
 
@@ -90,7 +90,7 @@ namespace cAlgo.API
         {
             get
             {
-                return mRobot.mMarketDataEventArgs.Last;
+                return mRobot.MarketDataEventArgs.Last;
             }
         }
 

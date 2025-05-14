@@ -70,7 +70,7 @@ namespace cAlgo.API
             {
                 // If not IsTickReplay, the primary data series must be based on Bid
                 if (Robot.BarsArray[0].BarsPeriod.MarketDataType != MarketDataType.Bid)
-                    throw new Exception($"Error: Primary Data Series must be based on Bid");
+                    throw new Exception($"Error: Primary Data Series must be based on Bid w/o TickReplay or Last w. TickReplay");
             }
 
             int i = 0;
@@ -135,19 +135,19 @@ namespace cAlgo.API
             }
         }
 
-        public void OnMarketData(MarketDataEventArgs args)
+        public void OnBarsMarketData()
         {
-            IsNewBar = CoFu.IsNewBar(BarsSeconds, args.Time, mPrevTime)
+            IsNewBar = CoFu.IsNewBar(BarsSeconds, Robot.MarketDataEventArgs.Time, mPrevTime)
                 || mPrevTime <= CoFu.TimeInvalid;
 
-            OpenTimes.OnMarketData(args);
-            OpenPrices.OnMarketData(args);
-            HighPrices.OnMarketData(args);
-            LowPrices.OnMarketData(args);
-            ClosePrices.OnMarketData(args);
-            TickVolumes.OnMarketData(args);
+            OpenTimes.OnMarketData();
+            OpenPrices.OnMarketData();
+            HighPrices.OnMarketData();
+            LowPrices.OnMarketData();
+            ClosePrices.OnMarketData();
+            TickVolumes.OnMarketData();
 
-            mPrevTime = args.Time;
+            mPrevTime = Robot.MarketDataEventArgs.Time;
         }
 
         //

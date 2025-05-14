@@ -62,9 +62,7 @@ namespace cAlgo.API
         [XmlIgnore] public RunningMode RunningMode;
         [XmlIgnore] public double CommissionPerQuantity;
         [XmlIgnore] public TimeZoneInfo PlatformTimeZoneInfo;
-        [XmlIgnore] public CSRobotFactory mRobotFactory;
-        [XmlIgnore] public IRobot mRobot;
-        [XmlIgnore] public MarketDataEventArgs mMarketDataEventArgs;
+        [XmlIgnore] public MarketDataEventArgs MarketDataEventArgs;
         [XmlIgnore]
         public Dictionary<string, string> Icm2Pepper = new()  // ICM ==> Pepperstone symbol convert
         {
@@ -82,12 +80,14 @@ namespace cAlgo.API
         [Browsable(false)]
         [XmlIgnore]
         public new DateTime Time =>
-            IsTickReplay ? (null == mMarketDataEventArgs ? CoFu.TimeInvalid : mMarketDataEventArgs.Time) :
+            IsTickReplay ? (null == MarketDataEventArgs ? CoFu.TimeInvalid : MarketDataEventArgs.Time) :
             Times[0][0];    // Nt primary data series is used as cTrader data series
         [Browsable(false)][XmlIgnore] public bool IsBacktesting => RunningMode != RunningMode.RealTime;
 
         private bool mDoTerminate;
         private bool mDoStart;
+        private CSRobotFactory mRobotFactory;
+        private IRobot mRobot;
         #endregion
 
         #region Start
@@ -223,7 +223,7 @@ namespace cAlgo.API
                         Debug.Assert(BarsArray.Length == 2 * MarketData.BarsDictionary.Count,
                             "Error: Number of BarsArray does not match number of MarketData.BarsDictionary");
 
-                        mMarketDataEventArgs = new MarketDataEventArgs();
+                        MarketDataEventArgs = new MarketDataEventArgs();
                     }
 
                     // Init bars and their series 
@@ -264,16 +264,16 @@ namespace cAlgo.API
 
         protected override void OnMarketData(MarketDataEventArgs args)
         {
-            // Realtime trading or Tick Replay must be active for OnMarketData() to get called
-            // OnMarketData() is not called in backtests unless Tick Replay is enabled
+            // Realtime trading or Tick Replay must be active for OnBarsMarketData() to get called
+            // OnBarsMarketData() is not called in backtests unless Tick Replay is enabled
             // Only Last can and must be used in Data Series when Tick Replay is enabled
             if (BarsInProgress != 0 || args.Bid <= 0 || args.Ask <= 0
-                || (IsTickReplay && MarketDataType.Last != args.MarketDataType))
+                    || (IsTickReplay && MarketDataType.Last != args.MarketDataType))
                 return;
 
             // ToDo: Put into symbol corresponding with args.Instrument
             // when having several symbols
-            mMarketDataEventArgs = args;
+            MarketDataEventArgs = args;
 
             // we have to postpone OnStart etc, til here because earlier we do not have a valid Time
             if (CurrentBar >= 0)
@@ -286,7 +286,7 @@ namespace cAlgo.API
 
                 // Update the bars with the new market data
                 foreach (var bar in MarketData.BarsDictionary)
-                    bar.Value.OnMarketData(args);
+                    bar.Value.OnBarsMarketData();
 
                 // Call user bot
                 mRobot.PreTick();
@@ -533,6 +533,7 @@ namespace cAlgo.API
                 StopLossTriggerMethod = null,
                 TargetPrice = limitPrice,
                 ExpirationTime = expiration,
+                Symbol = botSymbol,
             };
 
             PendingOrders.Add(pendingOrder);

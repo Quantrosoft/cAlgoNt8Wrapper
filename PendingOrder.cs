@@ -188,15 +188,15 @@ namespace cAlgo.API
         /// Print("Position was opened, has Trailing Stop = {0}", result.Position.HasTrailingStop);
         /// </code>
         /// </example>
-        public bool HasTrailingStop { get; set; }
+        public bool HasTrailingStop { get; internal set; }
 
         /// <summary>Trigger method for position's StopLoss</summary>
-        public StopTriggerMethod? StopLossTriggerMethod { get; set; }
+        public StopTriggerMethod? StopLossTriggerMethod { get; internal set; }
 
         /// <summary>
         /// Determines how pending order will be triggered in case it's a StopOrder
         /// </summary>
-        public StopTriggerMethod? StopOrderTriggerMethod { get; set; }
+        public StopTriggerMethod? StopOrderTriggerMethod { get; internal set; }
 
         /// <summary>
         /// Maximum limit from order target price, where order can be executed.
@@ -207,12 +207,17 @@ namespace cAlgo.API
         /// var result = PlaceStopLimitOrder(TradeType.Buy, SymbolName, 10000, targetPrice, 2.0);
         /// </code>
         /// </example>
-        public double? StopLimitRangePips { get; set; }
+        public double? StopLimitRangePips { get; internal set; }
 
         /// <summary>Gets the symbol name.</summary>
         /// <value></value>
         /// <remarks></remarks>
         public string SymbolName => NinjaOrder.Instrument.FullName;
+
+        /// <summary>
+        ///     Gets the order symbol.
+        /// </summary>
+        public Symbol Symbol { get; internal set; }
 
         /// <summary>
         /// Shortcut for Robot.ModifyPendingOrder method to change Stop Loss

@@ -48,8 +48,9 @@ namespace cAlgo.API
             mTickReplayData = new Ringbuffer<double>(Bars.TickReplaySize);
         }
 
-        public void OnMarketData(MarketDataEventArgs args)
+        public void OnMarketData()
         {
+            var args = mBars.Robot.MarketDataEventArgs;
             if (mBars.IsNewBar || 0 == mTickReplayData.Count)
                 mTickReplayData.Add(args.Bid);
 

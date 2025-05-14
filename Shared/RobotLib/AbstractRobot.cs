@@ -86,6 +86,7 @@ namespace RobotLib
         public double Commissions;
         public double Swap;
         public double NetProfit;
+        public string OrderType;
     }
 
     public class Drawings
@@ -1130,8 +1131,6 @@ namespace RobotLib
             { "SILBER", "XAGUSD" },
       };
         private DataRateId mDataRateId;
-        private Action<PositionOpenedEventArgs> mOnPositionOpened;
-        private Action<PositionClosedEventArgs> mOnPositionClosed;
 
         public double LotPoint(Symbol symbol)
         {
@@ -1264,15 +1263,8 @@ namespace RobotLib
             return "";
         }
 
-        public virtual void DataLoadedInit(
-            Action<PositionOpenedEventArgs> onPositionOpened,
-            Action<PositionClosedEventArgs> onPositionClosed)
+        public virtual void DataLoadedInit()
         {
-            mOnPositionOpened = onPositionOpened;
-            mOnPositionClosed = onPositionClosed;
-            mRobot.Positions.Opened += OnPositionOpened;
-            mRobot.Positions.Closed += OnPositionClosed;
-
             mInitialAccountBalance = mRobot.Account.Balance;
             mInitialTime = mRobot.Time;
 
@@ -1281,18 +1273,6 @@ namespace RobotLib
             PostTick();
             mIsInit = false;
             mIs1stTick = true;
-        }
-
-        private void OnPositionOpened(PositionOpenedEventArgs args)
-        {
-            if (null != mOnPositionOpened)
-                mOnPositionOpened?.Invoke(args);
-        }
-
-        private void OnPositionClosed(PositionClosedEventArgs args)
-        {
-            if (null != mOnPositionClosed)
-                mOnPositionClosed?.Invoke(args);
         }
 
         public virtual void PreTick()
@@ -1749,7 +1729,9 @@ namespace RobotLib
                     continue;
 
                     case "Mode":
-                    mLogger.AddText((isComma ? "," : "") + (TradeType.Sell == lp.TradeType ? "Short" : "Long"));
+                    mLogger.AddText((isComma ? "," : "")
+                        + (TradeType.Sell == lp.TradeType ? "Short " : "Long ")
+                        + lp.OrderType);
                     continue;
 
                     case "PointValue":
@@ -2074,7 +2056,7 @@ namespace RobotLib
         }
 
         public TradeResult CancelPending(PendingOrder pending)
-        { 
+        {
             return pending.Cancel();
         }
 
@@ -2226,7 +2208,7 @@ namespace RobotLib
             return retVal;
         }
 #endif
-#endregion
+        #endregion
 
         #region cTrader Api
         public void Print(string message, params object[] parameters) => mRobot.Print(message + parameters);

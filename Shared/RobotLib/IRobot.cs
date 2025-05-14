@@ -28,9 +28,7 @@ namespace RobotLib
         int LotDigits(Symbol symbol);
         int SpreadInPoints(Symbol symbol);
         string ConfigInit(Robot robot, string timeZoneId = "");
-        void DataLoadedInit(
-            Action<PositionOpenedEventArgs> onPositionOpened = null,
-            Action<PositionClosedEventArgs> onPositionClosed = null);
+        void DataLoadedInit();
         void PreTick();
         void PostTick();
         void OpenLogfile(ILogger logger, string filename, LogFlags mode = LogFlags.HeaderAndSeveralLines, string header = "");
