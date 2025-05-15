@@ -1624,7 +1624,10 @@ namespace RobotLib
                 //if (0 == (mLogger.Mode & OneLine)) logHeader += (",\n");
             }
 
+            var backUp = mLogger.Mode;
+            mLogger.Mode &= ~LogFlags.LogPrint;
             mLogger.AddText(logHeader);
+            mLogger.Mode = backUp;
             mLogger.Flush();
             mHeaderSplit = logHeader.Split(',');
         }

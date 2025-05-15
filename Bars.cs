@@ -38,6 +38,7 @@ namespace cAlgo.API
         public Robot Robot;
         public int BarsSeconds;
 
+        private DateTime mPrevTime;
         private string mSymbolName;
         private TimeFrame mTimeFrame;
         private StrategyRenderBase mStrategy;
@@ -194,6 +195,11 @@ namespace cAlgo.API
 
         //
         // Summary:
+        //     Gets the open bar time data.
+        public TimeSeries OpenTimes;
+
+        //
+        // Summary:
         //     Gets the average prices data (Open + High + Low + Close) / 4.
         //public DataSeries AveragePrices => mBars.AveragePrices;
 
@@ -212,12 +218,12 @@ namespace cAlgo.API
         //     Gets the Weighted prices data (High + Low + 2 * Close) / 4.
         //public DataSeries WeightedPrices;
 
-        //
-        // Summary:
-        //     Gets the open bar time data.
-        public TimeSeries OpenTimes;
-        private DateTime mPrevTime;
 
         public int GetBar(DateTime time) => Robot.Bars.GetBar(time);
+
+        public int GetHashCode()
+        {
+            return BarsSeconds / SEC_PER_MINUTE;
+        }
     }
 }
