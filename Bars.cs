@@ -221,7 +221,7 @@ namespace cAlgo.API
 
         public int GetBar(DateTime time) => Robot.Bars.GetBar(time);
 
-        public int GetHashCode()
+        public override int GetHashCode()
         {
             return BarsSeconds / SEC_PER_MINUTE;
         }
