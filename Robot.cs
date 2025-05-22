@@ -1,5 +1,5 @@
 /* MIT License
-Copyright (c) 2035 Quantrosoft Pty. Ltd.
+Copyright (c) 2025 Quantrosoft Pty. Ltd.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@ SOFTWARE.
 using cAlgo.API.Internals;
 using NinjaTrader.Cbi;
 using NinjaTrader.Core;
+using NinjaTrader.CQG.ProtoBuf;
 using NinjaTrader.Data;
 using NinjaTrader.Gui.NinjaScript;
 using NinjaTrader.NinjaScript;
@@ -278,15 +279,15 @@ namespace cAlgo.API
             // we have to postpone OnStart etc, til here because earlier we do not have a valid Time
             if (CurrentBar >= 0)
             {
+                // Update the bars with the new market data
+                foreach (var bar in MarketData.BarsDictionary)
+                    bar.Value.OnBarsMarketData();
+
                 if (mDoStart)
                 {
                     OnStart();  // Call user's bot OnStart
                     mDoStart = false;
                 }
-
-                // Update the bars with the new market data
-                foreach (var bar in MarketData.BarsDictionary)
-                    bar.Value.OnBarsMarketData();
 
                 // Call user bot
                 mRobot.PreTick();
@@ -336,7 +337,14 @@ namespace cAlgo.API
                 if (execution.IsEntry || execution.IsEntryStrategy)
                 {
                     if (null != position)
+                    {
+                        // From Ninja website:
+                        // Assign entryOrder in OnOrderUpdate() to ensure the assignment occurs when expected.
+                        // This is more reliable than assigning NinjaOrder objects in OnBarUpdate, as the assignment
+                        // is not gauranteed to be complete if it is referenced immediately after submitting
+                        position.NinjaOrder = execution.Order;
                         Positions.RaiseOpened(new PositionOpenedEventArgs(position));
+                    }
                 }
                 else if (execution.IsExit || execution.IsExitStrategy)
                 {
@@ -458,6 +466,23 @@ namespace cAlgo.API
             var isLong = tradeType == TradeType.Buy;
             var currentClosePrice = isLong ? botSymbol.Bid : botSymbol.Ask;
 
+            var position = new Position(this, order)
+            {
+                // EntryPrice is not set but comes from => NinjaOrder.AverageFillPrice;
+                // TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
+                // HasTrailingStop => NinjaOrder.Stopwatch.IsRunning; 
+                EntryTime = Time,
+                Label = label,
+                Comment = comment,
+                Swap = 0,
+                StopLoss = null,
+                TakeProfit = null,
+                Pips = 0,
+                Margin = 0,
+            };
+
+            Positions.Add(position);
+
             // store label + comment in the order for later restart
             order = isLong
                 ? EnterLong((int)volume, signal)
@@ -475,22 +500,6 @@ namespace cAlgo.API
                 SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
             }
 
-            var position = new Position(this, order)
-            {
-                // EntryPrice is not set but comes from => NinjaOrder.AverageFillPrice;
-                // TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
-                // HasTrailingStop => NinjaOrder.Stopwatch.IsRunning; 
-                EntryTime = Time,
-                Label = label,
-                Comment = comment,
-                Swap = 0,                              // Not tracked by NinjaTrader by default
-                StopLoss = null,                       // If you set SL/TP, track externally
-                TakeProfit = null,
-                Pips = 0,
-                Margin = 0,
-            };
-
-            Positions.Add(position);
             return new TradeResult() { Position = position, IsSuccessful = true };
         }
 

@@ -1,5 +1,5 @@
 /* MIT License
-Copyright (c) 2035 Quantrosoft Pty. Ltd.
+Copyright (c) 2025 Quantrosoft Pty. Ltd.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -85,13 +85,18 @@ namespace cAlgo.API
             get
             {
                 if (mRobot.Position.MarketPosition == MarketPosition.Flat)
-                    return mLastGrossProfit;
+                {
+                    if (null != mRobot.Position)
+                        return mLastGrossProfit;
+                }
                 else
                     return mLastGrossProfit = mRobot.Position.GetUnrealizedProfitLoss(
                         PerformanceUnit.Currency,
                         NinjaOrder.IsLong
                             ? Symbol.Bid
                             : Symbol.Ask);
+
+                return 0;
             }
         }
         //
@@ -102,10 +107,18 @@ namespace cAlgo.API
             get
             {
                 if (mRobot.Position.MarketPosition == MarketPosition.Flat)
-                    return mLastNetProfit;
+                {
+                    if (null != mRobot.Position)
+                        return mLastGrossProfit;
+                }
                 else
-                    return mLastNetProfit = mRobot.Position.GetUnrealizedProfitLoss(
-                        PerformanceUnit.Currency, (NinjaOrder.IsLong ? Symbol.Bid : Symbol.Ask));
+                    return mLastGrossProfit = mRobot.Position.GetUnrealizedProfitLoss(
+                        PerformanceUnit.Currency,
+                        NinjaOrder.IsLong
+                            ? Symbol.Bid
+                            : Symbol.Ask);
+
+                return 0;
             }
         }
         //
