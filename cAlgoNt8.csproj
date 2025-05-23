@@ -66,6 +66,6 @@
      <ProjectReference Include="..\..\..\source\TDS2.0\Libs\TdsCommons\TdsCommons.csproj" />
    </ItemGroup>
    <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-     <Exec Command="xcopy /y &quot;C:\Users\HMz\Documents\NinjaTrader 8\bin\Custom\cAlgoNt8\*.cs&quot; &quot;$(ProjectDir)&quot;&#xD;&#xA;xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\cs\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;" />
+     <Exec Command="rem xcopy /y &quot;C:\Users\HMz\Documents\NinjaTrader 8\bin\Custom\cAlgoNt8\*.cs&quot; &quot;$(ProjectDir)&quot;&#xD;&#xA;xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\cs\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;" />
    </Target>
 </Project>

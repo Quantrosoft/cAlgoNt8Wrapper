@@ -109,10 +109,10 @@ namespace cAlgo.API
                 if (mRobot.Position.MarketPosition == MarketPosition.Flat)
                 {
                     if (null != mRobot.Position)
-                        return mLastGrossProfit;
+                        return mLastNetProfit;
                 }
                 else
-                    return mLastGrossProfit = mRobot.Position.GetUnrealizedProfitLoss(
+                    return mLastNetProfit = mRobot.Position.GetUnrealizedProfitLoss(
                         PerformanceUnit.Currency,
                         NinjaOrder.IsLong
                             ? Symbol.Bid
