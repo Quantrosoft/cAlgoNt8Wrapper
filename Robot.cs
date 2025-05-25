@@ -212,6 +212,8 @@ namespace cAlgo.API
 
                 case State.DataLoaded:
                 {
+                    mDoTerminate = mDoStart = true;
+
                     if (IsTickReplay)
                         Debug.Assert(BarsArray.Length == MarketData.BarsDictionary.Count,
                             "Error: Number of BarsArray does not match number of MarketData.BarsDictionary");
@@ -226,8 +228,6 @@ namespace cAlgo.API
                     // Init bars and their series 
                     foreach (var bars in MarketData.BarsDictionary)
                         bars.Value.OnBarsDataLoaded();
-
-                    mDoTerminate = mDoStart = true;
                 }
                 break;
 
