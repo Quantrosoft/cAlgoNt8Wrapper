@@ -32,7 +32,6 @@ namespace RobotLib
         void PreTick();
         void PostTick();
         void OpenLogfile(ILogger logger, string filename, LogFlags mode = LogFlags.HeaderAndSeveralLines, string header = "");
-        GetCurrentTime GetCurrentTimeDelegate();
         double GetBidAskPrice(Symbol symbol, BidAsk tradeType);
         int iPrice(double price, double tickSize);
 

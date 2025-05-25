@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36109.1 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cAlgoNt8Wrapper", "cAlgoNt8Wrapper.csproj", "{1355A045-DF13-6D55-3674-5856CD613C2C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1355A045-DF13-6D55-3674-5856CD613C2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1355A045-DF13-6D55-3674-5856CD613C2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1355A045-DF13-6D55-3674-5856CD613C2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1355A045-DF13-6D55-3674-5856CD613C2C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DB3A5089-DCB9-4E35-A890-1747A1F2532C}
+	EndGlobalSection
+EndGlobal

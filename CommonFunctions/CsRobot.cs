@@ -7,8 +7,6 @@ namespace RobotLib.Cs
     public class CsRobot : AbstractRobot
     {
         #region Members
-        private IQuoteProvider QuoteProvider;
-
         static public readonly string[] TimeZoneArray = new string[]
         {
          // <summary>(GMT-12:00) International Date Line West</summary>
@@ -219,11 +217,6 @@ namespace RobotLib.Cs
             return retVal;
         }
 
-        public void SetQuotePovider(IQuoteProvider quoteProvider)
-        {
-            QuoteProvider = quoteProvider;
-        }
-
         public override string GetSymbolTrail(string cTsymbol)
         {
             return cTsymbol;  // nothing to do here on cTrader
@@ -247,28 +240,6 @@ namespace RobotLib.Cs
             }
             Array.Resize(ref buffer, i);
             return System.Text.Encoding.UTF8.GetString(buffer, 0, buffer.Length).Trim();
-        }
-
-        protected override void TickDataManagement()
-        {
-            // append new tick to our serial arrays
-            if (mRobot.RunningMode == RunningMode.RealTime && CoFu.IsTickDataLoaded())
-            {
-                // TODO use IQuoteProvider?
-                /*if (IsNewBar(1) || mIsInit)
-                   CoFu.SetDtBidAskDt(0, mRobot.Time.ToNativeSec(), mRobot.Bid, mRobot.Ask, ref mCurrentTickNdx);
-                else
-                   CoFu.SetDtBidAskNdx(0, mRobot.Time.ToNativeSec(), mRobot.Bid, mRobot.Ask, ref mCurrentTickNdx);*/
-            }
-
-            // sync to init time
-            if (null != QuoteProvider)
-                if (mIsInit)
-                    QuoteProvider.SeekToQuote(mRobot.Time, out _);
-                else
-                {
-                    QuoteProvider.GetNextQuote(out Quote quote);
-                }
         }
     }
 }
