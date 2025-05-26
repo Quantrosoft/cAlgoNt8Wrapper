@@ -1,8 +1,31 @@
-﻿using Newtonsoft.Json.Linq;
+﻿/* MIT License
+Copyright (c) 2025 Quantrosoft Pty. Ltd.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. 
+*/
+
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Xml.Linq;
 
 namespace TdsCommons
@@ -499,6 +522,7 @@ namespace TdsCommons
         static public readonly DateTime TimeInvalid = new DateTime(1970, 1, 1, 0, 0, 0, 0); // needed to convert DateTime and Mt4 datetime
         static public readonly long DateTime2EpocDiff = TimeInvalid.Ticks / TdsDefs.HECTONANOSEC_PER_SEC;
         public static readonly CultureInfo UsCulture = new CultureInfo("en-US");
+        static public readonly TimeZoneInfo NytTzi = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
         // ICM ==> Pepperstone symbol convert
         static public Dictionary<string, string> Icm2Pepper = new Dictionary<string, string>
@@ -922,6 +946,124 @@ namespace TdsCommons
         public static double dPrice(int iPrice, double tickSize)
         {
             return tickSize * iPrice;
+        }
+        #endregion
+
+        #region Get several different times
+        //Get a NTP time from NIST
+        //do not request a nist date more than once every 4 seconds, or the connection will be refused.
+        //more servers at tf.nist.gov/tf-cgi/servers.cgi
+        static public long GetNIST2dt(string tzid)
+        {
+            DateTime nistDateTime = DateTime.MinValue;
+            try
+            {
+                using (var response = WebRequest.Create("http://www.google.com").GetResponse())
+                    nistDateTime = DateTime.ParseExact(response.Headers["date"], "ddd, dd MMM yyyy HH:mm:ss 'GMT'",
+                       CultureInfo.InvariantCulture.DateTimeFormat, DateTimeStyles.AdjustToUniversal);
+            }
+            catch (WebException)
+            {
+                nistDateTime = DateTime.UtcNow;
+            }
+
+            nistDateTime = DateTime.SpecifyKind(nistDateTime, DateTimeKind.Utc);
+            return TimeZoneInfo.ConvertTimeFromUtc(nistDateTime, TimeZoneInfo.FindSystemTimeZoneById(tzid)).ToNativeSec();
+        }
+
+        static public DateTime ConvertTimeFromUTC(DateTime utc, string tzid)
+        {
+            if ("" == tzid)
+                return utc.ToLocalTime();
+
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById(tzid));
+        }
+
+        static public long ConvertTimeFromUTC(long utc, string tzid)
+        {
+            return ConvertTimeFromUTC(utc.FromNativeSec(), tzid).ToNativeSec();
+        }
+
+        static public DateTime ConvertTimeToUTC(DateTime time, string tzid)
+        {
+            return TimeZoneInfo.ConvertTimeToUtc(time, TimeZoneInfo.FindSystemTimeZoneById(tzid));
+        }
+
+        static public long ConvertTimeToUTC(long time, string tzid)
+        {
+            return ConvertTimeToUTC(time.FromNativeSec(), tzid).ToNativeSec();
+        }
+
+        /// <summary>
+        /// 17:00 New York Time is 00:00 "Normalized New York time"
+        /// Using "Normalized New York time" has the benefit that daily/weekend gaps occure always around midnight
+        /// independent of Daylight saving time active or not. However,as a consequence be aware that UTC
+        /// is differnt in summer vs. winter. This time is used by some MT5 brokers (Pepperstone, ICMarket)
+        /// as the mServer Time      
+        /// </summary>
+        /// <param name="time"></param>
+        /// <param name="normalize"> It true, normalize NY time 17:00 to midnight</param>
+        /// <returns>Normalized New York Time</returns>
+        static public DateTime TimeUtc2Nyt(DateTime utc, bool normalize = false)
+        {
+            var nyTime = TimeZoneInfo.ConvertTimeFromUtc(utc, NytTzi);
+            return normalize ? nyTime + TimeSpan.FromHours(7) : nyTime;
+        }
+
+        static public long TimeUtc2Nyt(long utc, bool normalize = false)
+        {
+            return TimeUtc2Nyt(utc.FromNativeSec(), normalize).ToNativeSec();
+        }
+
+        static public DateTime TimeNyt2Utc(DateTime nyt, bool normalize = false)
+        {
+            if (normalize)
+                nyt -= TimeSpan.FromHours(7);
+            return TimeZoneInfo.ConvertTimeToUtc(nyt, NytTzi);
+        }
+
+        static public long TimeNyt2Utc(long nyt, bool normalize = false)
+        {
+            return TimeNyt2Utc(nyt.FromNativeSec(), normalize).ToNativeSec();
+        }
+
+        /// <summary>
+        /// Gets the time of the local computer also while backtesting.
+        /// MT4's TimeLocal() returns TimeCurrent()
+        /// </summary>
+        /// <returns>Local time</returns>
+        // cause c# does not include the return type into the signature, we use type as an argument to return type
+        static public long GetLocalTime()
+        {
+            return DateTime.Now.ToNativeSec();
+        }
+
+        /// <summary>
+        /// Parse time and date with the requested format
+        /// </summary>
+        /// <param name="date"></param>
+        /// <param name="format"></param>
+        /// <returns></returns>
+        static public long ParseDate(string date, string format)
+        {
+            return DateTime.ParseExact(date, format, CultureInfo.InvariantCulture).ToNativeSec();
+        }
+
+        static public double ParseDouble(string value, string culture)
+        {
+            return double.Parse(
+               value,
+               NumberStyles.Any,
+               CultureInfo.GetCultureInfo(culture));
+        }
+
+        static public bool TimeIsBetween(DateTime time, int hStart, int mStart, int hEnd, int mEnd)
+        {
+            long uNy = time.ToNativeSec() % TdsDefs.SEC_PER_DAY;    //MQ4_removeLine//
+                                                                    //long lNy = time % TdsDefs::SEC_PER_DAY;  //MQ4_enable//
+            int startSec = hStart * TdsDefs.SEC_PER_HOUR + mStart * TdsDefs.SEC_PER_MINUTE;
+            int endSec = hEnd * TdsDefs.SEC_PER_HOUR + mEnd * TdsDefs.SEC_PER_MINUTE;
+            return startSec <= uNy && uNy <= endSec;
         }
         #endregion
 

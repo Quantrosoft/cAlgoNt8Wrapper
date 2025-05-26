@@ -179,6 +179,7 @@ namespace cAlgo.API
                         Debugger.Launch();
 
                     #region Init
+                    mDoTerminate = mDoStart = true;
                     mRobotFactory = new CSRobotFactory();
                     mRobot = mRobotFactory.CreateRobot();
                     PlatformTimeZoneInfo = Globals.GeneralOptions.TimeZoneInfo;
@@ -212,8 +213,6 @@ namespace cAlgo.API
 
                 case State.DataLoaded:
                 {
-                    mDoTerminate = mDoStart = true;
-
                     if (IsTickReplay)
                         Debug.Assert(BarsArray.Length == MarketData.BarsDictionary.Count,
                             "Error: Number of BarsArray does not match number of MarketData.BarsDictionary");
