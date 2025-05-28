@@ -505,6 +505,7 @@ namespace cAlgo.API
             string label,
             double? stopLossPips,
             double? takeProfitPips,
+            ProtectionType protectionType,
             DateTime? expiration,
             string comment)
         {

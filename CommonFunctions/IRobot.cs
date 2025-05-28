@@ -63,7 +63,8 @@ namespace RobotLib
            int tpPts,
            int riskPoints,
            out double desiMon,
-           out double lotSize);
+           out double lotSize,
+           double lotsProContract = 1);
 
         string CalcProfitMode2Volume(
            Symbol symbol,

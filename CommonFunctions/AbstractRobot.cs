@@ -26,7 +26,6 @@ using cAlgo.API;
 using cAlgo.API.Internals;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using TdsCommons;
@@ -64,12 +63,9 @@ namespace RobotLib
 
     public enum ProfitMode
     {
-#if CTRADER
         Lots,
         Volume,
-#else
         Contracts,
-#endif
         ConstantInvest,
         Reinvest,
         LotsPro10k,
@@ -78,6 +74,25 @@ namespace RobotLib
         //RiskConstant,
         //RiskReinvest,
     };
+
+#if !CTRADER
+    //     The protection type for orders and positions.
+    public enum ProtectionType
+    {
+        //
+        // Summary:
+        //     No protection.
+        None,
+        //
+        // Summary:
+        //     Relative or distance based protection type.
+        Relative,
+        //
+        // Summary:
+        //     Absolute or price based protection type.
+        Absolute
+    }
+#endif
 
     public delegate Position DelegateOpenTrade(
        Symbol symbol,
@@ -443,7 +458,7 @@ namespace RobotLib
 
                 //     Commission is in symbol quote asset / currency per one lot.
                 case SymbolCommissionType.QuoteCurrencyPerOneLot:
-                Debugger.Break();
+                //Debugger.Break();
                 throw new NotImplementedException();
             }
 #endif
@@ -580,7 +595,8 @@ namespace RobotLib
            int tpPts,
            int riskPoints,
            out double desiMon,
-           out double volumeLotSize)
+           out double volumeLotSize,
+           double lotsProContract = 1)
         {
             desiMon = 0;
             volumeLotSize = 0;
@@ -598,7 +614,19 @@ namespace RobotLib
                 case ProfitMode.Volume:
                 desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value);
                 break;
+
+                case ProfitMode.Contracts:
+                desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value * lotsProContract);
+                break;
 #else
+                case ProfitMode.Lots:
+                desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize = value / lotsProContract);
+                break;
+
+                case ProfitMode.Volume:
+                desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value / lotsProContract);
+                break;
+
                 case ProfitMode.Contracts:
                 desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value);
                 break;
@@ -1302,7 +1330,17 @@ namespace RobotLib
             {
                 var orderComment = MakeLogComment(symbol, commentVersion);
                 volume = symbol.NormalizeVolumeInUnits(volume);
-                var result = mRobot.PlaceLimitOrder(tradeType, symbol.Name, volume, targetPrice, label, 0, 0, null, orderComment);
+                var result = mRobot.PlaceLimitOrder(tradeType,
+                    symbol.Name,
+                    volume,
+                    targetPrice,
+                    label,
+                    0,
+                    0,
+                    ProtectionType.None,
+                    null,
+                    orderComment);
+
                 if (result.IsSuccessful)
                     return result.Position;
             }
