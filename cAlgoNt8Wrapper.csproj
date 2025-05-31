@@ -35,22 +35,19 @@
    </ItemGroup>
    <ItemGroup>
      <Reference Include="NinjaTrader.Core">
-       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\NinjaTrader.Core.dll</HintPath>
+       <HintPath>..\..\..\..\..\..\Program Files\NinjaTrader 8\bin\NinjaTrader.Core.dll</HintPath>
      </Reference>
      <Reference Include="NinjaTrader.Custom">
-       <HintPath>..\..\NinjaTrader 8\bin\Custom\NinjaTrader.Custom.dll</HintPath>
+       <HintPath>..\..\..\NinjaTrader 8\bin\Custom\NinjaTrader.Custom.dll</HintPath>
      </Reference>
      <Reference Include="NinjaTrader.Gui">
-       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\NinjaTrader.Gui.dll</HintPath>
+       <HintPath>..\..\..\..\..\..\Program Files\NinjaTrader 8\bin\NinjaTrader.Gui.dll</HintPath>
      </Reference>
      <Reference Include="SharpDX">
-       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.dll</HintPath>
+       <HintPath>..\..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.dll</HintPath>
      </Reference>
      <Reference Include="SharpDX.Direct2D1">
-       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.Direct2D1.dll</HintPath>
-     </Reference>
-     <Reference Include="SharpDX.Direct3D10">
-       <HintPath>..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.Direct3D10.dll</HintPath>
+       <HintPath>..\..\..\..\..\..\Program Files\NinjaTrader 8\bin\SharpDX.Direct2D1.dll</HintPath>
      </Reference>
      <Reference Include="System.ComponentModel.DataAnnotations" />
      <Reference Include="System.IO.Compression" />
