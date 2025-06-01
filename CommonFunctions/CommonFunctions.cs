@@ -514,6 +514,23 @@ namespace TdsCommons
         LogFile = 16,
         LogPrint = 32
     }
+
+#if CTRADER
+    public enum MarketDataType
+    {
+        Ask,
+        Bid,
+        Last,
+        DailyHigh,
+        DailyLow,
+        DailyVolume,
+        LastClose,
+        Opening,
+        OpenInterest,
+        Settlement,
+        Unknown
+    }
+#endif
     #endregion
 
     public class CoFu
