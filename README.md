@@ -14,6 +14,7 @@ File view:
 | `C:\Users\<User>\Documents\Source\cTraderNinjaTrader\cTrader\UltronNt`                            | A simple trading bot compiled for cTrader             |
 | `C:\Users\<User>\Documents\Source\cTraderNinjaTrader\NinjaTrader\UltronNt`                        | A simple trading bot compiled for NinjaTrader         |
 
+
 Visual Studio View:
 
 ![image](https://github.com/user-attachments/assets/e8165b2b-7c7f-4335-8bfe-99cf77e1ca76)
