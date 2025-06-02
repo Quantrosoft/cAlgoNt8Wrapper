@@ -30,6 +30,9 @@ namespace RobotLib
     public interface IRobot
     {
         bool Is1stTick { get; }
+        bool IsCtrader { get; }
+        bool IsNinjaTrader { get; }
+        TradingPlatform TradingPlatform { get; }
         double InitialAccountBalance { get; }
         DateTime InitialTime { get; }
         DateTime PrevTime { get; }
@@ -94,9 +97,9 @@ namespace RobotLib
         void LoggerAddText(string s);
 
         void LoggerClosingTrade(LogParams logParams);
-        
+
         void LoggerFlush();
-        
+
         void LoggerClose(string preText = "");
 
         string GetSymbolTrail(string cTsymbol);

@@ -33,34 +33,6 @@ using static TdsDefs;
 
 namespace RobotLib
 {
-    public class CsvAction
-    {
-        public bool IsLong;
-        public bool IsToOpen;
-        public bool IsToClose;
-        public bool IsSl;
-        public int IsWaitForPriceNdx;
-        public string CsvId;
-        public string Comment;
-        public double CsvActionPrice;
-        public double CsvNetProfit;
-        public double CsvVolume;
-        public double CsvCommission;
-        public double CsvSwap;
-        public Symbol Symbol;
-        public TradeType CsvTradeType;
-        public DateTime CsvActionTime;
-        public Position OpenedPosition;
-    }
-
-    public enum Xaxis
-    {
-        None,
-        Middle,
-        Bottom,
-        Top
-    }
-
     public enum ProfitMode
     {
         Lots,
@@ -68,12 +40,23 @@ namespace RobotLib
         Contracts,
         ConstantInvest,
         Reinvest,
-        LotsPro10k,
-        ProfitPercent,
-        ProfitAmmount,
+        //LotsPro10k,
+        //ProfitPercent,
+        //ProfitAmmount,
         //RiskConstant,
         //RiskReinvest,
     };
+
+    public enum TradingPlatform
+    {
+        MetaTrader4,
+        MetaTrader5,
+        NinjaTrader,
+        cTrader,
+        KitaTrader,
+        TradingView,
+        QuantConnect, // Lean Engine
+    }
 
 #if !CTRADER
     //     The protection type for orders and positions.
@@ -330,8 +313,10 @@ namespace RobotLib
     public abstract class AbstractRobot : IRobot
     {
         #region Members
-        // Default order type implementation
-        //public OrderType DefaultOrderType { get; private set; } = OrderType.Market; public string QrSymbolName;
+        public TradingPlatform TradingPlatform { get; }
+        public bool IsNinjaTrader { get; }
+        public bool IsCtrader { get; }
+
         protected Robot mRobot; // MQL needs fully qualified path for Robot
         protected ILogger mLogger;
         protected bool mValidateTickData, mIsInit, mIsSwapLongInit, mIsSwapShortInit, mIsCommissionsInit, mIs1stTick;
@@ -342,6 +327,7 @@ namespace RobotLib
         protected Color[] cTradeColor;
         protected ChartIconType[] cTradeIcon;
         protected DateTime cInvalidTime;
+
         private string[] mHeaderSplit;
         private Dictionary<string, string> mSymbolDictionary = new Dictionary<string, string>
         {
@@ -527,6 +513,13 @@ namespace RobotLib
         #region ctor
         public AbstractRobot()
         {
+#if CTRADER
+            TradingPlatform = TradingPlatform.cTrader;
+            IsCtrader = true;
+#else
+            TradingPlatform = TradingPlatform.NinjaTrader;
+            IsNinjaTrader = true;
+#endif
             cCommentTab = "\n\t\t";
 
             cTradeColor = new Color[2];
@@ -631,19 +624,19 @@ namespace RobotLib
                 desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value);
                 break;
 #endif
-                case ProfitMode.LotsPro10k:
-                volumeLotSize = (mRobot.Account.Balance - mRobot.Account.Margin) / 10000 * value;
-                desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
-                break;
+                //case ProfitMode.LotsPro10k:
+                //volumeLotSize = (mRobot.Account.Balance - mRobot.Account.Margin) / 10000 * value;
+                //desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
+                //break;
 
-                case ProfitMode.ProfitPercent:
-                desiMon = (mRobot.Account.Balance - mRobot.Account.Margin) * value / 100;
-                volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon, tpPts, CommissionPerLot(symbol));
-                break;
+                //case ProfitMode.ProfitPercent:
+                //desiMon = (mRobot.Account.Balance - mRobot.Account.Margin) * value / 100;
+                //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon, tpPts, CommissionPerLot(symbol));
+                //break;
 
-                case ProfitMode.ProfitAmmount:
-                volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon = value, tpPts, CommissionPerLot(symbol));
-                break;
+                //case ProfitMode.ProfitAmmount:
+                //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon = value, tpPts, CommissionPerLot(symbol));
+                //break;
 
                 //case ProfitMode.RiskConstant:
                 //case ProfitMode.RiskReinvest:
