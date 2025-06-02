@@ -55,6 +55,9 @@
    <ItemGroup>
      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
    </ItemGroup>
+   <ItemGroup>
+     <Folder Include="cAlgoNt8Indicators\" />
+   </ItemGroup>
    <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
      <Exec Command="rem xcopy /y &quot;C:\Users\HMz\Documents\NinjaTrader 8\bin\Custom\cAlgoNt8\*.cs&quot; &quot;$(ProjectDir)&quot;&#xD;&#xA;rem xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;rem xcopy /y &quot;C:\Users\HMz\source\TDS2.0\Libs\RobotLib\cs\*.cs&quot; &quot;$(ProjectDir)Shared\RobotLib&quot;&#xD;&#xA;" />
    </Target>
