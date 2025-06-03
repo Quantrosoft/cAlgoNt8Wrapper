@@ -539,13 +539,13 @@ namespace RobotLib
         {
             mRobot = robot;
             mTimeZoneId = timeZoneId;
+            mInitialAccountBalance = mRobot.Account.Balance;
 
             return "";
         }
 
         public virtual void DataLoadedInit()
         {
-            mInitialAccountBalance = mRobot.Account.Balance;
             mInitialTime = mRobot.Time;
 
             mIsInit = true;
