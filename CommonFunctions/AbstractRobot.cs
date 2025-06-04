@@ -755,9 +755,18 @@ namespace RobotLib
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
 
+#if CTRADER
+            var pointFactor = Math.Pow(10, mRobot.Symbol.Digits);
+            var pointValue = mRobot.Symbol.TickValue * pointFactor; // TickValue is in USD per 1 Point
+#else
+            // public double TickValue => mRobot.Instrument.MasterInstrument.TickSize
+            // * mRobot.Instrument.MasterInstrument.PointValue;
+            var pointValue = mRobot.Symbol.TickValue / mRobot.Symbol.TickSize;
+#endif
             mRobot.Chart.DrawStaticText(
                "Comment2",
-               "\n" + cCommentTab + "TickValue: " + ConvertUtils.DoubleToString(mRobot.Symbol.TickValue, mRobot.Symbol.Digits) + sCurrency
+               "\n" + cCommentTab + "PointValue: "
+               + ConvertUtils.DoubleToString(pointValue, 2) + sCurrency
                + ", TickSize: " + ConvertUtils.DoubleToString(mRobot.Symbol.TickSize, mRobot.Symbol.Digits)
                + ", Digits: " + mRobot.Symbol.Digits,
                VerticalAlignment.Top,
@@ -926,7 +935,8 @@ namespace RobotLib
         {
             if (null == mLogger
                     || (0 != (mLogger.Mode & LogFlags.LogFile) && !mLogger.IsOpen)
-                    || 0 != (mLogger.Mode & LogFlags.NoCloseLog))
+                    || 0 != (mLogger.Mode & LogFlags.NoCloseLog)
+                    || null == mHeaderSplit)
                 return;
 
             // orgComment;123456,aaa,+-ppp     meaning:
@@ -1357,7 +1367,7 @@ namespace RobotLib
             return mBot.Chart.DrawStaticText("StaticText" + x + '_' + y,
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
         }
-        #endregion
+#endregion
 
         #region cTrader Api
         public void Print(string message, params object[] parameters) => mRobot.Print(message + parameters);

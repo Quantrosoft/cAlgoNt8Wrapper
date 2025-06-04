@@ -59,6 +59,6 @@
      <Folder Include="cAlgoNt8Indicators\" />
    </ItemGroup>
    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-     <Exec Command="xcopy /y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)..\..\NinjaTrader 8\bin\Custom&quot; || exit /b 0 " />
+     <Exec Command="xcopy /y &quot;$(TargetDir)$(ProjectName).*&quot; &quot;$(SolutionDir)..\..\NinjaTrader 8\bin\Custom&quot; || exit /b 0 " />
    </Target>
 </Project>
