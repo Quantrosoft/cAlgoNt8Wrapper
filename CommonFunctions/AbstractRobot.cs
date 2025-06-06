@@ -758,14 +758,16 @@ namespace RobotLib
 #if CTRADER
             var pointFactor = Math.Pow(10, mRobot.Symbol.Digits);
             var pointValue = mRobot.Symbol.TickValue * pointFactor; // TickValue is in USD per 1 Point
+            var platform = "Lot";
 #else
             // public double TickValue => mRobot.Instrument.MasterInstrument.TickSize
             // * mRobot.Instrument.MasterInstrument.PointValue;
             var pointValue = mRobot.Symbol.TickValue / mRobot.Symbol.TickSize;
+            var platform = "Contract";
 #endif
             mRobot.Chart.DrawStaticText(
                "Comment2",
-               "\n" + cCommentTab + "PointValue: "
+               "\n" + cCommentTab + $"PointValue/{platform}: "
                + ConvertUtils.DoubleToString(pointValue, 2) + sCurrency
                + ", TickSize: " + ConvertUtils.DoubleToString(mRobot.Symbol.TickSize, mRobot.Symbol.Digits)
                + ", Digits: " + mRobot.Symbol.Digits,
@@ -774,7 +776,7 @@ namespace RobotLib
                mRobot.Chart.ColorSettings.ForegroundColor);
 
             mRobot.Chart.DrawStaticText("Comment3",
-               "\n\n" + cCommentTab + "Spread: " + ConvertUtils.IntegerToString(SpreadInPoints(mRobot.Symbol)) // IntegerToString() needed for MT5 to avoid warnings
+               "\n\n" + cCommentTab + "Spread: " + ConvertUtils.IntegerToString(SpreadInPoints(mRobot.Symbol))
                + (-1 == avgSpreadPts ? "" : ", AvgSpread: " + ConvertUtils.IntegerToString(avgSpreadPts))
 #if CTRADER
                + ", MaxLot: " + ConvertUtils.DoubleToString(mRobot.Symbol.VolumeInUnitsToQuantity(mRobot.Symbol.VolumeInUnitsMax), 2)
@@ -1367,12 +1369,10 @@ namespace RobotLib
             return mBot.Chart.DrawStaticText("StaticText" + x + '_' + y,
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
         }
-#endregion
+        #endregion
 
         #region cTrader Api
         public void Print(string message, params object[] parameters) => mRobot.Print(message + parameters);
-        public void Stop() => mRobot.Stop();
-
         public Symbols Symbols => mRobot.Symbols;
         public MarketData MarketData => mRobot.MarketData;
         public DateTime Time => mRobot.Time;

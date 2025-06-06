@@ -139,7 +139,7 @@ namespace cAlgo.API
                 var TotalCashBalance = mStrategy.Account.Get(AccountItem.TotalCashBalance,
                     mStrategy.Account.Denomination);
 
-                return mStrategy.Account.Get(AccountItem.MaintenanceMargin,
+                return mStrategy.Account.Get(AccountItem.PositionMargin,
                 mStrategy.Account.Denomination);
             }
         }

@@ -149,8 +149,6 @@ namespace RobotLib
         // cTrader API
         void Print(string message, params object[] parameters);
 
-        void Stop();
-
         Symbols Symbols { get; }
         MarketData MarketData { get; }
         DateTime Time { get; }

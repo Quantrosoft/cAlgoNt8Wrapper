@@ -85,6 +85,7 @@ namespace cAlgo.API
         private bool mDoStart;
         private CSRobotFactory mRobotFactory;
         private IRobot mRobot;
+        private bool mIsStopped;
         #endregion
 
         #region Start
@@ -246,24 +247,42 @@ namespace cAlgo.API
                 break;
 
                 case State.Terminated:
-                {
-                    if (mDoTerminate)
-                    {
-                        OnStop(); // Call user's bot
-                        mDoTerminate = false;
-                        Print("Done\n");
-                    }
-                }
+                DoStop();
                 break;
             }
         }
+
+        private void DoStop()
+        {
+            if (mDoTerminate)
+            {
+                try
+                {
+                    OnStop(); // Call user's bot
+                }
+                catch (Exception)
+                {
+                    var error = new Error()
+                    {
+                        Code = ErrorCode.TechnicalError
+                    };
+                    OnError(error);
+                }
+                mDoTerminate = false;
+                Print("Done\n");
+            }
+        }
+
 
         protected override void OnMarketData(MarketDataEventArgs args)
         {
             // Realtime trading or Tick Replay must be active for OnBarsMarketData() to get called
             // OnBarsMarketData() is not called in backtests unless Tick Replay is enabled
             // Only Last can and must be used in Data Series when Tick Replay is enabled
-            if (BarsInProgress != 0 || args.Bid <= 0 || args.Ask <= 0
+            if (BarsInProgress != 0
+                    || args.Bid <= 0
+                    || args.Ask <= 0
+                    || mIsStopped
                     || (IsTickReplay && MarketDataType.Last != args.MarketDataType))
                 return;
 
@@ -274,52 +293,77 @@ namespace cAlgo.API
             // we have to postpone OnStart etc, til here because earlier we do not have a valid Time
             if (CurrentBar >= 0)
             {
-                // Update the bars with the new market data
-                foreach (var bar in MarketData.BarsDictionary)
-                    bar.Value.OnBarsMarketData();
-
-                if (mDoStart)
+                try
                 {
-                    OnStart();  // Call user's bot OnStart
-                    mDoStart = false;
-                }
+                    // Update the bars with the new market data
+                    foreach (var bar in MarketData.BarsDictionary)
+                        bar.Value.OnBarsMarketData();
 
-                // Call user bot
-                mRobot.PreTick();
-                OnTick();
-                mRobot.PostTick();
+                    if (mDoStart)
+                    {
+                        OnStart();  // Call user's bot OnStart
+                        mDoStart = false;
+                    }
+
+                    // Call user bot
+                    mRobot.PreTick();
+                    OnTick();
+                    mRobot.PostTick();
+                }
+                catch (Exception)
+                {
+                    var error = new Error()
+                    {
+                        Code = ErrorCode.TechnicalError
+                    };
+                    OnError(error);
+                }
             }
         }
 
         protected override void OnBarUpdate()
         {
             // Only process the primary data series
-            if (CurrentBar <= 0 || BarsInProgress != 0 || IsTickReplay)
+            if (CurrentBar <= 0
+                || mIsStopped
+                || BarsInProgress != 0
+                || IsTickReplay)
                 return;
 
-            // we have to postpone OnStart until here because earlier we do not have a valid Time
-            if (mDoStart)
+            try
             {
-                OnStart();  // Call user's bot init 2nd time OnStart
-                mDoStart = false;
-            }
+                // we have to postpone OnStart until here because earlier we do not have a valid Time
+                if (mDoStart)
+                {
+                    OnStart();  // Call user's bot init 2nd time OnStart
+                    mDoStart = false;
+                }
 
-            mRobot.PreTick();
-            OnTick();
-            mRobot.PostTick();
+                mRobot.PreTick();
+                OnTick();
+                mRobot.PostTick();
+            }
+            catch (Exception)
+            {
+                var error = new Error()
+                {
+                    Code = ErrorCode.TechnicalError
+                };
+                OnError(error);
+            }
         }
 
         // here we dispatch market orders and raise the corresponding events
         // OnExecutionUpdate gives us IsEntry, IsExit, IsEntryStrategy, IsExitStrategy, 
         // OnOrderUpdate does not
         protected override void OnExecutionUpdate(
-            Execution execution,
-            string executionId,
-            double price,
-            int quantity,
-            MarketPosition marketPosition,
-            string orderId,
-            DateTime time)
+                    Execution execution,
+                    string executionId,
+                    double price,
+                    int quantity,
+                    MarketPosition marketPosition,
+                    string orderId,
+                    DateTime time)
         {
             // Only consider filled executions
             if (execution.Order == null || execution.Order.OrderState != OrderState.Filled)
@@ -645,7 +689,13 @@ namespace cAlgo.API
             return label + "|" + comment;
         }
 
-        public void Stop() => throw new Exception("Bot stoped");
+        public void Stop()
+        {
+            mIsStopped = true;
+            DoStop();
+            //CloseStrategy("Stop() called");
+            throw new Exception("Stop() called, strategy stopped");
+        }
 
         // Must be ovverridden in derived bot class
         protected virtual void OnSetDefaults() { }
@@ -656,6 +706,7 @@ namespace cAlgo.API
         protected virtual void OnBar() { }
         protected virtual void OnStop() { }
         protected virtual double GetFitness(GetFitnessArgs args) { return 0; }
+        protected virtual void OnError(Error error) { }
         #endregion
     }
 }

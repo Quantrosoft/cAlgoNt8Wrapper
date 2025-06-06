@@ -28,10 +28,12 @@
      <Page Remove="Properties\**" />
    </ItemGroup>
    <ItemGroup>
+     <None Remove=".git" />
      <None Remove=".gitattributes" />
      <None Remove=".gitignore" />
      <None Remove="cAlgoNt8.sln.licenseheader" />
      <None Remove="LICENSE.txt" />
+     <None Remove="README.md" />
    </ItemGroup>
    <ItemGroup>
      <Reference Include="NinjaTrader.Core">
@@ -59,6 +61,6 @@
      <Folder Include="cAlgoNt8Indicators\" />
    </ItemGroup>
    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-     <Exec Command="xcopy /y &quot;$(TargetDir)$(ProjectName).*&quot; &quot;$(SolutionDir)..\..\NinjaTrader 8\bin\Custom&quot; || exit /b 0 " />
+     <Exec Command="xcopy /y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;$(SolutionDir)..\..\NinjaTrader 8\bin\Custom&quot; &#xD;&#xA;xcopy /y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)..\..\NinjaTrader 8\bin\Custom&quot; || exit /b 0 " />
    </Target>
 </Project>
