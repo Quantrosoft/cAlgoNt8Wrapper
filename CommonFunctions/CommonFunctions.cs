@@ -24,6 +24,8 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Xml.Linq;
@@ -1142,6 +1144,97 @@ namespace TdsCommons
             }
 
             return false;
+        }
+
+        static public string ReadCtDayV1(
+            string symbolFile,
+            DateTime dayDate,
+            ref int targetNdx,
+            ref SerialArrays sa)
+        {
+            var fileName = Path.Combine(symbolFile,
+                dayDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".zticks");
+
+            if (!File.Exists(fileName))
+                return "Tickdata file " + fileName + " not found";
+
+            byte[] ba;
+            using (GZipStream decompressor = new GZipStream(
+                new FileStream(fileName, FileMode.Open, FileAccess.Read), CompressionMode.Decompress))
+            {
+                using MemoryStream to = new MemoryStream();
+                decompressor.CopyTo(to);
+                ba = to.ToArray();
+            }
+
+            int sourceNdx = 0;
+            while (sourceNdx + 24 <= ba.Length)
+            {
+                if (targetNdx >= sa.Tick2NativeMs.Length)
+                {
+                    int size = sa.Tick2NativeMs.Length == 0 ? 10000 : sa.Tick2NativeMs.Length * 2;
+                    Array.Resize(ref sa.Tick2NativeMs, size);
+                    Array.Resize(ref sa.Tick2Bid, size);
+                    Array.Resize(ref sa.Tick2Ask, size);
+                }
+
+                // 1. Read timestamp (little-endian Int64)
+                sa.Tick2NativeMs[targetNdx] = BitConverter.ToInt64(ba, sourceNdx);
+                var debugDt = sa.Tick2NativeMs[targetNdx].FromNativeMs();
+                sourceNdx += 8;
+
+                var bid = (double)BitConverter.ToUInt64(ba, sourceNdx) / 1e5;
+                sourceNdx += 8;
+
+                var ask = (double)BitConverter.ToUInt64(ba, sourceNdx) / 1e5;
+                sourceNdx += 8;
+
+                sa.Tick2Bid[targetNdx] = bid == 0 ? (targetNdx == 0 ? ask : sa.Tick2Bid[targetNdx - 1]) : bid;
+                sa.Tick2Ask[targetNdx] = ask == 0 ? (targetNdx == 0 ? bid : sa.Tick2Ask[targetNdx - 1]) : ask;
+                targetNdx++;
+            }
+
+            Array.Resize(ref sa.Tick2NativeMs, targetNdx);
+            Array.Resize(ref sa.Tick2Bid, targetNdx);
+            Array.Resize(ref sa.Tick2Ask, targetNdx);
+
+            return "";
+        }
+
+        static public string WriteCtDayV1(
+            string symbolFile,
+            DateTime dayDate,
+            in SerialArrays sa)
+        {
+            var fileName = Path.Combine(symbolFile,
+                dayDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".zticks");
+
+            try
+            {
+                using var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write);
+                using var gzipStream = new GZipStream(fileStream, CompressionMode.Compress);
+                using var writer = new BinaryWriter(gzipStream);
+
+                for (int i = 0; i < sa.Tick2NativeMs.Length; i++)
+                {
+                    // 1. Timestamp (little-endian Int64)
+                    writer.Write(sa.Tick2NativeMs[i]);
+
+                    // 2. Bid price as UInt32 (scaled by 1e5)
+                    var bidInt = (ulong)Math.Round(sa.Tick2Bid[i] * 1e5);
+                    writer.Write(bidInt);
+
+                    // 3. Ask price as UInt32 (scaled by 1e5)
+                    var askInt = (ulong)Math.Round(sa.Tick2Ask[i] * 1e5);
+                    writer.Write(askInt);
+                }
+
+                return "";
+            }
+            catch (Exception ex)
+            {
+                return $"Error writing tickdata to file {fileName}: {ex.Message}";
+            }
         }
         #endregion
     }
