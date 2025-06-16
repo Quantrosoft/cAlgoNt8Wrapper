@@ -575,7 +575,7 @@ namespace RobotLib
             // On each new second, update all QcBars
             if (Time.ToNativeSec() != PrevTime.ToNativeSec())
                 foreach (var qcBar in mQcBarList)
-                    qcBar.OnTick(Time, PrevTime);
+                    qcBar.OnTick(Time);
         }
 
         public virtual void PostTick()

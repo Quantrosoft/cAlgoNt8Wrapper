@@ -55,6 +55,7 @@ namespace TdsCommons
         public QcDataSeries AskLowPrices;
         public QcDataSeries AskClosePrices;
         public QcDataSeries AskVolumes;
+        private DateTime mPrevTime;
         #endregion
 
         public QcBars(string folderPath, string symbolPair, int barPeriodSeconds)
@@ -77,29 +78,28 @@ namespace TdsCommons
 
             // Add an empty slot to start with
             // Prices and volumes must inized with 0
-            OpenTimes.Add(CoFu.TimeInvalid);
-            BidOpenPrices.Add(0);
-            BidHighPrices.Add(0);
-            BidLowPrices.Add(0);
-            BidClosePrices.Add(0);
-            BidVolumes.Add(0);
-            AskOpenPrices.Add(0);
-            AskHighPrices.Add(0);
-            AskLowPrices.Add(0);
-            AskClosePrices.Add(0);
-            AskVolumes.Add(0);
+            //OpenTimes.Add(CoFu.TimeInvalid);
+            //BidOpenPrices.Add(0);
+            //BidHighPrices.Add(0);
+            //BidLowPrices.Add(0);
+            //BidClosePrices.Add(0);
+            //BidVolumes.Add(0);
+            //AskOpenPrices.Add(0);
+            //AskHighPrices.Add(0);
+            //AskLowPrices.Add(0);
+            //AskClosePrices.Add(0);
+            //AskVolumes.Add(0);
         }
 
-        public void OnTick(DateTime from, DateTime prevTime)
+        public void OnTick(DateTime from)
         {
             var fromNative = from.ToNativeSec();
 
-            if (null == mStreamReader)
-                ReadNextSecondBar(from);
-
             do
             {
-                if (mIsNewDay || CoFu.IsNewBar(mBarPeriodSeconds, from, prevTime))
+                ReadNextSecondBar(from);
+
+                if (mIsNewDay || CoFu.IsNewBar(mBarPeriodSeconds, mSecondBar.TimeOpen, mPrevTime))
                 {
                     // init open stuff
                     long periodTicks = mBarPeriodSeconds * TimeSpan.TicksPerSecond;
@@ -114,6 +114,11 @@ namespace TdsCommons
                     BidLowPrices.Add(mSecondBar.BidLow);
                     AskLowPrices.Add(mSecondBar.AskLow);
 
+                    BidClosePrices.Add(mSecondBar.BidClose);
+                    AskClosePrices.Add(mSecondBar.AskClose);
+
+                    BidVolumes.Add(0);
+                    AskVolumes.Add(0);
                     mIsNewDay = false;
                 }
 
@@ -128,9 +133,7 @@ namespace TdsCommons
                 BidVolumes.Swap(BidVolumes.LastValue + mSecondBar.BidVolume);
                 AskVolumes.Swap(AskVolumes.LastValue + mSecondBar.AskVolume);
 
-                ReadNextSecondBar(from);    // get second bar for next loop
-                if (null == mStreamReader)
-                    OnTick(from, prevTime);
+                mPrevTime = mSecondBar.TimeOpen;
 
             } while (mSecondBar.TimeOpen.ToNativeSec() < fromNative);
         }
