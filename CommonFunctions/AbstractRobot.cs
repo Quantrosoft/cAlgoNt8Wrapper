@@ -20,8 +20,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
-#define REPURCHASE_NOT_ORDERSx
-
 using cAlgo.API;
 using cAlgo.API.Internals;
 using System;
@@ -33,6 +31,7 @@ using static TdsDefs;
 
 namespace RobotLib
 {
+    #region Enums
     public enum ProfitMode
     {
         Lots,
@@ -76,7 +75,9 @@ namespace RobotLib
         Absolute
     }
 #endif
+    #endregion
 
+    #region Delegates
     public delegate Position DelegateOpenTrade(
        Symbol symbol,
        TradeType tradeType,
@@ -88,6 +89,7 @@ namespace RobotLib
     public delegate TradeResult DelegateCloseTrade(Position pos);
     public delegate void DelegateOnPositionOpened(PositionOpenedEventArgs args);
     public delegate void DelegateOnPositionClosed(PositionClosedEventArgs args);
+    #endregion
 
     public class LogParams
     {
@@ -230,7 +232,7 @@ namespace RobotLib
                                 CoFu.Min(ref minVal, data.Last(i));
                             }
 
-                            //if (mBot.Chart.TopY != mLastTopY || mBot.Chart.BottomY != mLastBottomY
+                            //if (mRobot.Chart.TopY != mLastTopY || mRobot.Chart.BottomY != mLastBottomY
                             {
                                 var drawFact = (maxVal - minVal) / (mBot.Chart.TopY - mBot.Chart.BottomY);
 
@@ -277,8 +279,8 @@ namespace RobotLib
                                 }
                             }
                         }
-            //mLastBottomY = mBot.Chart.BottomY;
-            //mLastTopY = mBot.Chart.TopY;
+            //mLastBottomY = mRobot.Chart.BottomY;
+            //mLastTopY = mRobot.Chart.TopY;
         }
 
         public void DrawHistogram(List<double> data, string name, Color color)
@@ -310,7 +312,7 @@ namespace RobotLib
         }
     }
 
-    public abstract class AbstractRobot : IRobot
+    public abstract class AbstractRobot
     {
         #region Members
         public TradingPlatform TradingPlatform { get; }
@@ -404,6 +406,7 @@ namespace RobotLib
             { "SILBER", "XAGUSD" },
       };
         private DataRateId mDataRateId;
+        private List<QcBars> mQcBarList = new List<QcBars>();
 
         public double LotPoint(Symbol symbol)
         {
@@ -535,7 +538,7 @@ namespace RobotLib
         #endregion
 
         #region Methods
-        public virtual string ConfigInit(Robot robot, string timeZoneId)
+        public virtual string ConfigInit(Robot robot, string timeZoneId = "")
         {
             mRobot = robot;
             mTimeZoneId = timeZoneId;
@@ -568,6 +571,11 @@ namespace RobotLib
                         mDataRateId = DataRateId.Minutes;
                     else
                         mDataRateId = DataRateId.Timeframe;
+
+            // On each new second, update all QcBars
+            if (Time.ToNativeSec() != PrevTime.ToNativeSec())
+                foreach (var qcBar in mQcBarList)
+                    qcBar.OnTick(Time, PrevTime);
         }
 
         public virtual void PostTick()
@@ -680,7 +688,7 @@ namespace RobotLib
 
             normalizedVolume = symbol.NormalizeVolumeInUnits(
                symbol.QuantityToVolumeInUnits(
-               //Math.Max(ParentBot.mBot.mRobot.LotPoint(ParentBot.BotSymbol),
+               //Math.Max(ParentBot.mRobot.mRobot.LotPoint(ParentBot.BotSymbol),
                rawVolume));
 
             return retVal;
@@ -729,7 +737,7 @@ namespace RobotLib
             return retVal;
         }
 
-        public void PrintComment(string version, string comment, int avgSpreadPts, bool normNyTime = false)
+        public void PrintComment(string version, string comment, int avgSpreadPts = 0, bool normNyTime = false)
         {
             // Warning: DrawStaticText causes exception when Optimizing !!!
             string sCurrency = " " + mRobot.Account.Asset.Name;
@@ -1114,7 +1122,7 @@ namespace RobotLib
             mLogger.Flush();
         }
 
-        public void LoggerClose(string preText)
+        public void LoggerClose(string preText = "")
         {
             if (null == mLogger || !mLogger.IsOpen)
                 return;
@@ -1368,6 +1376,14 @@ namespace RobotLib
             var yOffset = new string('\n', y);
             return mBot.Chart.DrawStaticText("StaticText" + x + '_' + y,
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
+        }
+
+        public QcBars GetQcBars(int barPeriodSeconds,
+            string symbolPair,
+            string folderPath)
+        {
+            mQcBarList.Add(new QcBars(folderPath, symbolPair, barPeriodSeconds));
+            return mQcBarList.Last();
         }
         #endregion
 

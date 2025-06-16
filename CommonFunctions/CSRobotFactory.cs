@@ -31,7 +31,7 @@ namespace RobotLib.Cs
             return new CsLogger(robot);
         }
 
-        public IRobot CreateRobot()
+        public AbstractRobot CreateRobot()
         {
             return new CsRobot();
         }

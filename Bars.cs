@@ -30,6 +30,7 @@ namespace cAlgo.API
 {
     public class Bars
     {
+        #region Members
         internal const int TickReplaySize = 1000;
         public int LastBarsIndex = -1;
         public int BidBarsIndex = -1;
@@ -42,6 +43,7 @@ namespace cAlgo.API
         private string mSymbolName;
         private TimeFrame mTimeFrame;
         private StrategyRenderBase mStrategy;
+        #endregion
 
         public Bars(Robot robot, TimeFrame timeFrame, string symbolName)
         {

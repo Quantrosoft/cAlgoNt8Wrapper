@@ -84,7 +84,7 @@ namespace cAlgo.API
         private bool mDoTerminate;
         private bool mDoStart;
         private CSRobotFactory mRobotFactory;
-        private IRobot mRobot;
+        private AbstractRobot mRobot;
         private bool mIsStopped;
         #endregion
 

@@ -30,7 +30,7 @@ using System.Threading;
 /* Usage Examples for Multi-Process FIFO Operations:
  *
  * // Producer Process:
- * using var buffer = new RingMemoryMappedFile<double>(1000, "SharedBuffer", true);
+ * using var buffer = new TickServer<double>(1000, "SharedBuffer", true);
  * 
  * // Add items to FIFO buffer (never blocks, overwrites oldest)
  * buffer.Enqueue(3.14159);
@@ -42,7 +42,7 @@ using System.Threading;
  * buffer.BlockingEnqueue(99.9, TimeSpan.FromSeconds(30));  // With custom timeout
  * 
  * // Consumer Process:
- * using var buffer = new RingMemoryMappedFile<double>("SharedBuffer");
+ * using var buffer = new TickServer<double>("SharedBuffer");
  * 
  * // Read items in FIFO order
  * if (buffer.TryDequeue(out double value))
@@ -58,7 +58,7 @@ using System.Threading;
  * // Thread-safe producer-consumer example with blocking:
  * try
  * {
- *     using var buffer = new RingMemoryMappedFile<int>(100, "MyIntBuffer");
+ *     using var buffer = new TickServer<int>(100, "MyIntBuffer");
  *     
  *     // Producer thread (blocking mode)
  *     Task.Run(() =>
@@ -97,7 +97,7 @@ namespace TdsCommons
     /// </summary>
     /// <typeparam name="T">The generic type of the items stored within the ring buffer. 
     /// Must be a value type.</typeparam>
-    public class RingMemoryMappedFile<T> : IDisposable where T : struct
+    public class TickServer<T> : IDisposable where T : struct
     {
         #region Private variables
         /// <summary>
@@ -266,13 +266,13 @@ namespace TdsCommons
 
         #region Constructors
         /// <summary>
-        /// Creates a new instance of a <see cref="RingMemoryMappedFile<T>"/> with a specified 
+        /// Creates a new instance of a <see cref="TickServer<T>"/> with a specified 
         /// cache size using memory-mapped files.
         /// </summary>
         /// <param name="slots">The maximal count of items to be stored within the ring buffer.</param>
         /// <param name="mmfName">Optional name for the memory-mapped file. If null, a unique name will be generated.</param>
         /// <param name="createNew">If true, creates a new memory-mapped file. If false, tries to open existing one.</param>
-        public RingMemoryMappedFile(int slots, string mmfName = null, bool createNew = true)
+        public TickServer(int slots, string mmfName = null, bool createNew = true)
         {
             if (slots <= 0)
                 throw new ArgumentException("Slots must be greater than zero", nameof(slots));
@@ -292,7 +292,7 @@ namespace TdsCommons
         /// Creates a ring buffer that connects to an existing memory-mapped file.
         /// </summary>
         /// <param name="mmfName">Name of the existing memory-mapped file.</param>
-        public RingMemoryMappedFile(string mmfName)
+        public TickServer(string mmfName)
         {
             if (string.IsNullOrEmpty(mmfName))
                 throw new ArgumentException("Memory-mapped file name cannot be null or empty", nameof(mmfName));
@@ -304,7 +304,9 @@ namespace TdsCommons
 
             try
             {
+#pragma warning disable CA1416 // Validate platform compatibility
                 mMmf = MemoryMappedFile.OpenExisting(mmfName);
+#pragma warning restore CA1416 // Validate platform compatibility
                 mAccessor = mMmf.CreateViewAccessor();
 
                 // Load metadata to determine size
@@ -334,7 +336,9 @@ namespace TdsCommons
                 {
                     try
                     {
+#pragma warning disable CA1416 // Validate platform compatibility
                         mMmf = MemoryMappedFile.OpenExisting(mMmfName);
+#pragma warning restore CA1416 // Validate platform compatibility
                         mOwnsFile = false;
                     }
                     catch (FileNotFoundException)
@@ -403,7 +407,7 @@ namespace TdsCommons
         private T ReadItem(int index)
         {
             if (mAccessor == null)
-                throw new ObjectDisposedException(nameof(RingMemoryMappedFile<T>));
+                throw new ObjectDisposedException(nameof(TickServer<T>));
 
             long offset = index * mItemSize;
             return mAccessor.ReadStruct<T>(offset);
@@ -412,7 +416,7 @@ namespace TdsCommons
         private void WriteItem(int index, T item)
         {
             if (mAccessor == null)
-                throw new ObjectDisposedException(nameof(RingMemoryMappedFile<T>));
+                throw new ObjectDisposedException(nameof(TickServer<T>));
 
             long offset = index * mItemSize;
             mAccessor.WriteStruct(offset, item);
@@ -803,7 +807,7 @@ namespace TdsCommons
             }
         }
 
-        ~RingMemoryMappedFile()
+        ~TickServer()
         {
             Dispose(false);
         }
