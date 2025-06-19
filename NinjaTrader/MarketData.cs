@@ -28,7 +28,7 @@ namespace cAlgo.API
     public class MarketData
     {
         private Robot mRobot;
-        public Dictionary<(int, string), Bars> BarsDictionary = new Dictionary<(int, string), Bars>();
+        public Dictionary<(int, string), NinjaTraderQcBars> BarsDictionary = new Dictionary<(int, string), NinjaTraderQcBars>();
 
         public MarketData(Robot robot)
         {
@@ -42,7 +42,7 @@ namespace cAlgo.API
         // Parameters:
         //   timeFrame:
         //     The bars time frame
-        //public Bars GetBars(TimeFrame timeFrame);
+        //public NinjaTraderQcBars GetBars(mTimeFrame timeFrame);
 
 
         //
@@ -55,18 +55,18 @@ namespace cAlgo.API
         //
         //   symbolName:
         //     The bars symbol name
-        public Bars GetBars(TimeFrame timeFrame, string symbolName)
-        {
-            var barsSeconds = timeFrame.GetPeriodSeconds();
-            if (!BarsDictionary.ContainsKey((barsSeconds, symbolName)))
-            {
-                var bars = new Bars(mRobot, timeFrame, symbolName);
-                BarsDictionary.Add((barsSeconds, symbolName), bars);
-                return bars;
-            }
-            else
-                return BarsDictionary[(barsSeconds, symbolName)];
-        }
+        //public NinjaTraderQcBars GetBars(mTimeFrame timeFrame, string symbolName)
+        //{
+        //    var barsSeconds = timeFrame.GetPeriodSeconds();
+        //    if (!BarsDictionary.ContainsKey((barsSeconds, symbolName)))
+        //    {
+        //        var bars = new NinjaTraderQcBars(AbstractRobot, timeFrame, symbolName);
+        //        BarsDictionary.Add((barsSeconds, symbolName), bars);
+        //        return bars;
+        //    }
+        //    else
+        //        return BarsDictionary[(barsSeconds, symbolName)];
+        //}
 
         //
         // Summary:
@@ -79,7 +79,7 @@ namespace cAlgo.API
         //
         //   callback:
         //     The callback that will be called after getting the bars
-        //public void GetBarsAsync(TimeFrame timeFrame, Action<Bars> callback);
+        //public void GetBarsAsync(mTimeFrame timeFrame, Action<NinjaTraderQcBars> callback);
 
         //
         // Summary:
@@ -95,7 +95,7 @@ namespace cAlgo.API
         //
         //   callback:
         //     The callback that will be called after getting the bars
-        //public void GetBarsAsync(TimeFrame timeFrame, string symbolName, Action<Bars> callback);
+        //public void GetBarsAsync(mTimeFrame timeFrame, string symbolName, Action<NinjaTraderQcBars> callback);
 
         //
         // Summary:

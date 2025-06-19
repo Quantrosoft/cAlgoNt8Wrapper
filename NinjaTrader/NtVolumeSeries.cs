@@ -25,9 +25,9 @@ using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class VolumeSeries : ISeries<double>
+    public class NtVolumeSeries : ISeries<double>, IQcDataSeries
     {
-        private Bars mBars;
+        private NinjaTraderQcBars mBars;
         // With TickReplay we use our own Ringbuffer
         private Ringbuffer<long> mTickReplayData;
         // Without TickReplay we redirect directly to Ninja series
@@ -35,11 +35,11 @@ namespace cAlgo.API
         private long mAskVolume;
         private long mBidVolume;
 
-        public VolumeSeries(Bars bars, NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries)
+        public NtVolumeSeries(NinjaTraderQcBars bars, NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries)
         {
             mBars = bars;
             mNinjaVolumeSeries = ninjaVolumeSeries;
-            mTickReplayData = new Ringbuffer<long>(Bars.TickReplaySize);
+            mTickReplayData = new Ringbuffer<long>(NinjaTraderQcBars.TickReplaySize);
         }
 
         public void OnMarketData()
@@ -61,9 +61,7 @@ namespace cAlgo.API
             mTickReplayData.Swap(mAskVolume << 34 | mBidVolume << 2);
         }
 
-        //
-        // Summary:
-        //     An indexer used to access the VolumeSeries array
+        //     An indexer used to access the NtVolumeSeries array
         //
         // Parameters:
         //   barsAgo:
@@ -74,18 +72,12 @@ namespace cAlgo.API
         // To get the most recent value, use Last(0)
         public double this[int index] => Last(Count - 1 - index);
 
-        //
-        // Summary:
-        //     Indicates the number total number of values in the VolumeSeries array.
+        //     Indicates the number total number of values in the NtVolumeSeries array.
         public int Count => mNinjaVolumeSeries.Count;
 
-        //
-        // Summary:
         //     Gets the last value of this time series.
         public double LastValue => Last(0);
 
-        //
-        // Summary:
         //     Access a value in the dataseries certain bars ago
         //
         // Parameters:
@@ -106,20 +98,16 @@ namespace cAlgo.API
             }
         }
 
-        //
-        // Summary:
-        //     Returns the underlying VolumeSeries value at a specified bar index value.
+        //     Returns the underlying NtVolumeSeries value at a specified bar index value.
         //
         // Parameters:
         //   barIndex:
         //     An int representing an absolute bar index value
         public double GetValueAt(int barIndex)
         {
-            return 0;   // Bars.GetVolume(barIndex);
+            return 0;   // NinjaTraderQcBars.GetVolume(barIndex);
         }
 
-        //
-        // Summary:
         //     Indicates if the specified input is set at a barsAgo value relative to the current
         //     bar.
         //
@@ -128,11 +116,9 @@ namespace cAlgo.API
         //     An int representing from the current bar the number of historical bars to reference.
         public bool IsValidDataPoint(int barsAgo)
         {
-            return false;   // Bars.IsValidDataPoint(barsAgo);
+            return false;   // NinjaTraderQcBars.IsValidDataPoint(barsAgo);
         }
 
-        //
-        // Summary:
         //     Indicates if the specified input is set at a specified bar index value
         //
         // Parameters:
@@ -140,7 +126,11 @@ namespace cAlgo.API
         //     An int representing an absolute bar index value
         public bool IsValidDataPointAt(int barIndex)
         {
-            return false;// Bars.IsValidDataPointAt(barIndex);
+            return false;// NinjaTraderQcBars.IsValidDataPointAt(barIndex);
         }
+
+        public void Add(double value) { }
+        public void Bump() { }
+        public void Swap(double value) { }
     }
 }

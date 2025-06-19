@@ -20,36 +20,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
-using NinjaTrader.Data;
 using System;
 using TdsCommons;
 
 namespace cAlgo.API
 {
-    //     A series of values that represent time like Bars.OpenPricesTime
-    public class TimeSeries
+    public class CtQcTimeSeries : IQcTimeSeries
     {
-        private Bars mBars;
-        // With TickReplay we use our own Ringbuffer
-        private Ringbuffer<DateTime> mTickReplayData;
-        // Without TickReplay we redirect directly to Ninja series
-        private NinjaTrader.NinjaScript.TimeSeries mNinjaTimeSeries;
+        private Ringbuffer<DateTime> mQcData;
 
-        public TimeSeries(Bars bars, NinjaTrader.NinjaScript.TimeSeries timeSeries)
+        public CtQcTimeSeries()
         {
-            mBars = bars;
-            mNinjaTimeSeries = timeSeries;
-            mTickReplayData = new Ringbuffer<DateTime>(Bars.TickReplaySize);
+            mQcData = new Ringbuffer<DateTime>(CtQcBars.QcBarsSize);
         }
 
-        public void OnMarketData()
-        {
-            if (mBars.IsNewBar || 0 == mTickReplayData.Count)
-                mTickReplayData.Add(mBars.Robot.MarketDataEventArgs.Time);
-        }
-
-        //
-        // Summary:
         //     Returns the DateTime value at the specified index.
         //
         // Parameters:
@@ -61,18 +45,14 @@ namespace cAlgo.API
         // To get the most recent value, use Last(0)
         public DateTime this[int index] => Last(Count - 1 - index);
 
-        //
-        // Summary:
         //     Gets the last value of this time series.
         public DateTime LastValue => Last(0);
 
-        //
-        // Summary:
         //     Gets the number of elements contained in the series.
-        public int Count => mNinjaTimeSeries.Count;
+        public int Count => mQcData.AddCount;
 
-        //
-        // Summary:
+        public void OnMarketData() { }
+
         //     Access a value in the data series certain number of bars ago.
         //
         // Parameters:
@@ -80,13 +60,22 @@ namespace cAlgo.API
         //     Number of bars ago
         public DateTime Last(int index)
         {
-            if (mBars.Robot.IsTickReplay)
-            {
-                var nativeTime = mTickReplayData[index].ToNativeSec();
-                return (nativeTime - (nativeTime % mBars.BarsSeconds)).FromNativeSec();
-            }
-            else
-                return mNinjaTimeSeries[index];
+            return mQcData[index];
+        }
+
+        public void Add(DateTime value)
+        {
+            mQcData.Add(value);
+        }
+
+        public void Bump()
+        {
+            mQcData.Bump();
+        }
+
+        public void Swap(DateTime value)
+        {
+            mQcData.Swap(value);
         }
     }
 }

@@ -21,16 +21,32 @@ SOFTWARE.
 */
 
 using System;
+using TdsCommons;
 
-namespace TdsCommons
+namespace cAlgo.API
 {
-    public class QcTimeSeries
+    public class NtQcTimeSeries : IQcTimeSeries
     {
-        private Ringbuffer<DateTime> mQcData;
+        //     Gets the number of elements contained in the series.
+        public int Count => mNinjaTimeSeries.Count;
 
-        public QcTimeSeries()
+        private NinjaTraderQcBars mBars;
+        // With TickReplay we use our own Ringbuffer
+        private Ringbuffer<DateTime> mTickReplayData;
+        // Without TickReplay we redirect directly to Ninja series
+        private NinjaTrader.NinjaScript.TimeSeries mNinjaTimeSeries;
+
+        public NtQcTimeSeries(NinjaTraderQcBars bars, NinjaTrader.NinjaScript.TimeSeries timeSeries)
         {
-            mQcData = new Ringbuffer<DateTime>(QcBars.QcBarsSize);
+            mBars = bars;
+            mNinjaTimeSeries = timeSeries;
+            mTickReplayData = new Ringbuffer<DateTime>(NinjaTraderQcBars.TickReplaySize);
+        }
+
+        public void OnMarketData()
+        {
+            if (mBars.IsNewBar || 0 == mTickReplayData.Count)
+                mTickReplayData.Add(mBars.Robot.MarketDataEventArgs.Time);
         }
 
         //     Returns the DateTime value at the specified index.
@@ -47,9 +63,6 @@ namespace TdsCommons
         //     Gets the last value of this time series.
         public DateTime LastValue => Last(0);
 
-        //     Gets the number of elements contained in the series.
-        public int Count => mQcData.AddCount;
-
         //     Access a value in the data series certain number of bars ago.
         //
         // Parameters:
@@ -57,22 +70,16 @@ namespace TdsCommons
         //     Number of bars ago
         public DateTime Last(int index)
         {
-            return mQcData[index];
+            if (mBars.Robot.IsTickReplay)
+            {
+                var nativeTime = mTickReplayData[index].ToNativeSec();
+                return (nativeTime - (nativeTime % mBars.BarsSeconds)).FromNativeSec();
+            }
+            else
+                return mNinjaTimeSeries[index];
         }
-
-        public void Add(DateTime value)
-        {
-            mQcData.Add(value);
-        }
-
-        public void Bump()
-        {
-            mQcData.Bump();
-        }
-
-        public void Swap(DateTime value)
-        {
-            mQcData.Swap(value);
-        }
+        public void Add(DateTime value) { }
+        public void Bump() { }
+        public void Swap(DateTime value) { }
     }
 }

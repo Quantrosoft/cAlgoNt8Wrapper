@@ -47,7 +47,6 @@ namespace cAlgo.API
     public class Robot : StrategyRenderBase
     {
         #region Members
-        [XmlIgnore] public new Bars Bars;
         [XmlIgnore] public Symbol Symbol;
         [XmlIgnore] public Symbols Symbols;
         [XmlIgnore] public new Account Account;
@@ -60,6 +59,7 @@ namespace cAlgo.API
         [XmlIgnore] public double CommissionPerQuantity;
         [XmlIgnore] public TimeZoneInfo PlatformTimeZoneInfo;
         [XmlIgnore] public MarketDataEventArgs MarketDataEventArgs;
+        [XmlIgnore] public AbstractRobot AbstractRobot;
         [XmlIgnore]
         public Dictionary<string, string> Icm2Pepper = new()  // ICM ==> Pepperstone symbol convert
         {
@@ -84,16 +84,15 @@ namespace cAlgo.API
         private bool mDoTerminate;
         private bool mDoStart;
         private CSRobotFactory mRobotFactory;
-        private AbstractRobot mRobot;
         private bool mIsStopped;
         #endregion
 
         #region Start
         protected void InitDataSeries()
         {
-            // Generate NinjaTrader bid and ask data series as pendants of requested cTrader Bars
+            // Generate NinjaTrader bid and ask data series as pendants of requested cTrader NinjaTraderQcBars
             int count = 0;
-            foreach (KeyValuePair<(int, string), Bars> kvp in MarketData.BarsDictionary)
+            foreach (KeyValuePair<(int, string), NinjaTraderQcBars> kvp in MarketData.BarsDictionary)
             {
                 if (0 == kvp.Value.BarsPeriod.Value)
                     throw new Exception($"Error: Bars Period Value may not be 0");
@@ -101,7 +100,7 @@ namespace cAlgo.API
                 // skip primary data series
                 if (0 == count)
                 {
-                    Bars = kvp.Value;   // Set default bars
+                    AbstractRobot.QcBars = kvp.Value;   // Set default bars
 
                     // Without TickReplay primary data series must be set to Bid
                     // then we need a companion Ask data series
@@ -182,7 +181,7 @@ namespace cAlgo.API
                     #region Init
                     mDoTerminate = mDoStart = true;
                     mRobotFactory = new CSRobotFactory();
-                    mRobot = mRobotFactory.CreateRobot();
+                    AbstractRobot = mRobotFactory.CreateRobot();
                     PlatformTimeZoneInfo = Globals.GeneralOptions.TimeZoneInfo;
 
                     Symbols = new Symbols(this);
@@ -199,15 +198,15 @@ namespace cAlgo.API
                     else if (BarsPeriod.BarsPeriodType == BarsPeriodType.Day)
                         dataRateSeconds *= SEC_PER_DAY;
 
-                    // Set default cTrader Bars and Symbol as pendant of NinjaTrader primary data series
-                    Bars = MarketData.GetBars(new TimeFrame(dataRateSeconds), Instrument.FullName);
+                    // Set default cTrader NinjaTraderQcBars and Symbol as pendant of NinjaTrader primary data series
+                    //QcBars = MarketData.GetBars(new mTimeFrame(dataRateSeconds), Instrument.FullName);
                     Symbol = Symbols.GetSymbol(Instrument.FullName);
 
-                    mRobot.ConfigInit(this); // set time zone, open/close callbacks, etc.
+                    AbstractRobot.ConfigInit(this); // set time zone, open/close callbacks, etc.
 
-                    // New Bars and Symbols can and must be added here
+                    // New NinjaTraderQcBars and Symbols can and must be added here
                     OnConfigure();      // Call user's bot init 1st time OnConfigure
-                    InitDataSeries();   // Add DataSeries as reqested in MarketData.GetBars
+                    InitDataSeries();   // Add NtQcDataSeries as reqested in MarketData.GetBars
                     #endregion
                 }
                 break;
@@ -306,9 +305,9 @@ namespace cAlgo.API
                     }
 
                     // Call user bot
-                    mRobot.PreTick();
+                    AbstractRobot.PreTick();
                     OnTick();
-                    mRobot.PostTick();
+                    AbstractRobot.PostTick();
                 }
                 catch (Exception)
                 {
@@ -339,9 +338,9 @@ namespace cAlgo.API
                     mDoStart = false;
                 }
 
-                mRobot.PreTick();
+                AbstractRobot.PreTick();
                 OnTick();
-                mRobot.PostTick();
+                AbstractRobot.PostTick();
             }
             catch (Exception)
             {

@@ -24,7 +24,7 @@ using System.Windows.Media;
 
 public static class NinjaBrushConverter
 {
-    //public static Brush FromCtraderColor(cAlgo.API.Color color)
+    //public static Brush FromCtraderColor(Color color)
     //{
     //    // Check if the color matches one of the known system ARGB values
     //    switch (color.ToArgb())

@@ -26,26 +26,26 @@ using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class DataSeries
+    public class NtQcDataSeries : IQcDataSeries
     {
         //
         // Summary:
         //     Represents a read only list of values, typically used to represent market price
         //     series. The values are accessed with an array-like [] operator.
-        private Bars mBars;
+        private NinjaTraderQcBars mBars;
         private Symbol mSymbol;
         // With TickReplay we use our own Ringbuffer
         private Ringbuffer<double> mTickReplayData;
         // Without TickReplay we redirect directly to Ninja series
         private NinjaTrader.NinjaScript.PriceSeries mNinjaDataSeries;
 
-        public DataSeries(Bars bars, Symbol symbol,
+        public NtQcDataSeries(NinjaTraderQcBars bars, Symbol symbol,
             NinjaTrader.NinjaScript.PriceSeries ninjaDataSeries)
         {
             mBars = bars;
             mSymbol = symbol;
             mNinjaDataSeries = ninjaDataSeries;
-            mTickReplayData = new Ringbuffer<double>(Bars.TickReplaySize);
+            mTickReplayData = new Ringbuffer<double>(NinjaTraderQcBars.TickReplaySize);
         }
 
         public void OnMarketData()
@@ -70,8 +70,6 @@ namespace cAlgo.API
 
         public double this[int index] => Last(Count - 1 - index);
 
-        //
-        // Summary:
         //     Gets the value in the dataseries at the specified position.
         //
         // The philosophie of cTrader is to use array indexing
@@ -81,7 +79,7 @@ namespace cAlgo.API
 
         //
         // Summary:
-        //     Gets the last value of this DataSeries.
+        //     Gets the last value of this NtQcDataSeries.
         //
         // Remarks:
         //     The last value may represent one of the values of the last bar of the market
@@ -90,13 +88,9 @@ namespace cAlgo.API
         //     change.
         public double LastValue => Last(0);
 
-        //
-        // Summary:
-        //     Gets the total number of elements contained in the DataSeries.
+        //     Gets the total number of elements contained in the NtQcDataSeries.
         public int Count => mNinjaDataSeries.Count;
 
-        //
-        // Summary:
         //     Access a value in the dataseries certain bars ago
         //
         // Parameters:
@@ -115,5 +109,9 @@ namespace cAlgo.API
                     return mNinjaDataSeries[index];
             }
         }
+
+        public void Add(double value) { }
+        public void Bump() { }
+        public void Swap(double value) { }
     }
 }

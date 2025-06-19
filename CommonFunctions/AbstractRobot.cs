@@ -115,12 +115,14 @@ namespace RobotLib
         //double mLastBottomY;
         //double mLastTopY;
         Robot mBot;
+        private AbstractRobot mAbstractRobot;
         private int mPrevOverlayBarCount;
         private double mPrevOverlayData;
 
-        public Drawings(Robot bot)
+        public Drawings(Robot bot, AbstractRobot abstractRobot)
         {
             mBot = bot;
+            mAbstractRobot = abstractRobot;
         }
 
         public void DrawOverlay(
@@ -130,7 +132,7 @@ namespace RobotLib
            Color color,
            int thickness)
         {
-            var isNewChartBar = mPrevOverlayBarCount != mBot.Bars.Count;
+            var isNewChartBar = mPrevOverlayBarCount != mAbstractRobot.QcBars.Count;
             var isInit = 0 == mPrevOverlayBarCount;
             for (int i = 0;
                i < data.Count - 1
@@ -144,7 +146,7 @@ namespace RobotLib
                 else
                     mBot.Chart.DrawTrendLine("Overlay" + name +
                         (isInit ? i : (mBot.Chart.Bars.Count % mBot.Chart.MaxVisibleBars + (isNewChartBar ? -1 : 0))).ToString(),
-                       isInit ? data.Last(i + 1).Item1 : mBot.Bars.OpenTimes.Last((isNewChartBar ? 1 : 0)),
+                       isInit ? data.Last(i + 1).Item1 : mAbstractRobot.QcBars.OpenTimes.Last((isNewChartBar ? 1 : 0)),
                        isInit ? data.Last(i + 1).Item2 : mPrevOverlayData,
                        isInit ? data.Last(i).Item1 : botCurrentTime,
                        data.Last(i).Item2,
@@ -157,18 +159,18 @@ namespace RobotLib
             if (isInit || isNewChartBar)
                 mPrevOverlayData = data.Last(0).Item2;
 
-            mPrevOverlayBarCount = mBot.Bars.Count;
+            mPrevOverlayBarCount = mAbstractRobot.QcBars.Count;
         }
 
-        public void DrawOverlay(Bars indiBars,
-           DataSeries data,
+        public void DrawOverlay(IQcBars indiBars,
+           IQcDataSeries data,
            string name,
            DateTime botCurrentTime,
            Color color,
            int thickness,
            int offset = 0)
         {
-            var isNewChartBar = mPrevOverlayBarCount != mBot.Bars.Count;
+            var isNewChartBar = mPrevOverlayBarCount != mAbstractRobot.QcBars.Count;
             var isInit = 0 == mPrevOverlayBarCount;
 
             for (int i = offset;
@@ -185,13 +187,13 @@ namespace RobotLib
                         + (mBot.Chart.Bars.Count % mBot.Chart.MaxVisibleBars - i + (isNewChartBar ? -1 : 0)).ToString(),
                        isInit
                           ? indiBars.OpenTimes.Last(i + 1)
-                          : mBot.Bars.OpenTimes.Last(isNewChartBar ? 1 + offset : 0),
+                          : mAbstractRobot.QcBars.OpenTimes.Last(isNewChartBar ? 1 + offset : 0),
                        isInit
                           ? data.Last(i + 1)
                           : mPrevOverlayData,
                        isInit
                           ? indiBars.OpenTimes.Last(i)
-                          : isNewChartBar ? mBot.Bars.OpenTimes.Last(offset) : mBot.Time,
+                          : isNewChartBar ? mAbstractRobot.QcBars.OpenTimes.Last(offset) : mBot.Time,
                        last,
                        color, thickness).IsInteractive = true;
                 }
@@ -202,12 +204,12 @@ namespace RobotLib
             if (isInit || isNewChartBar)
                 mPrevOverlayData = data.Last(isNewChartBar ? 1 : 0);
 
-            mPrevOverlayBarCount = mBot.Bars.Count;
+            mPrevOverlayBarCount = mAbstractRobot.QcBars.Count;
         }
 
         public void DrawNoOverlay(
-           Bars dataBars,
-           DataSeries data,
+           IQcBars dataBars,
+           IQcDataSeries data,
            string name,
            DateTime currentTime,
            Color color,
@@ -232,7 +234,7 @@ namespace RobotLib
                                 CoFu.Min(ref minVal, data.Last(i));
                             }
 
-                            //if (mRobot.Chart.TopY != mLastTopY || mRobot.Chart.BottomY != mLastBottomY
+                            //if (AbstractRobot.Chart.TopY != mLastTopY || AbstractRobot.Chart.BottomY != mLastBottomY
                             {
                                 var drawFact = (maxVal - minVal) / (mBot.Chart.TopY - mBot.Chart.BottomY);
 
@@ -279,8 +281,8 @@ namespace RobotLib
                                 }
                             }
                         }
-            //mLastBottomY = mRobot.Chart.BottomY;
-            //mLastTopY = mRobot.Chart.TopY;
+            //mLastBottomY = AbstractRobot.Chart.BottomY;
+            //mLastTopY = AbstractRobot.Chart.TopY;
         }
 
         public void DrawHistogram(List<double> data, string name, Color color)
@@ -315,11 +317,13 @@ namespace RobotLib
     public abstract class AbstractRobot
     {
         #region Members
+        public IQcBars QcBars;
+
         public TradingPlatform TradingPlatform { get; }
         public bool IsNinjaTrader { get; }
         public bool IsCtrader { get; }
 
-        protected Robot mRobot; // MQL needs fully qualified path for Robot
+        protected Robot mRobot;
         protected ILogger mLogger;
         protected bool mValidateTickData, mIsInit, mIsSwapLongInit, mIsSwapShortInit, mIsCommissionsInit, mIs1stTick;
         protected int mLoggingTradeCount;
@@ -406,7 +410,7 @@ namespace RobotLib
             { "SILBER", "XAGUSD" },
       };
         private DataRateId mDataRateId;
-        private List<QcBars> mQcBarList = new List<QcBars>();
+        private List<IQcBars> mQcBarList = new List<IQcBars>();
 
         public double LotPoint(Symbol symbol)
         {
@@ -572,10 +576,10 @@ namespace RobotLib
                     else
                         mDataRateId = DataRateId.Timeframe;
 
-            // On each new second, update all QcBars
+            // On each new second, update all CtQcBars
             if (Time.ToNativeSec() != PrevTime.ToNativeSec())
                 foreach (var qcBar in mQcBarList)
-                    qcBar.OnTick(Time);
+                    qcBar.OnTick(Time, PrevTime);
         }
 
         public virtual void PostTick()
@@ -633,12 +637,12 @@ namespace RobotLib
                 break;
 #endif
                 //case ProfitMode.LotsPro10k:
-                //volumeLotSize = (mRobot.Account.Balance - mRobot.Account.Margin) / 10000 * value;
+                //volumeLotSize = (AbstractRobot.Account.Balance - AbstractRobot.Account.Margin) / 10000 * value;
                 //desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
                 //break;
 
                 //case ProfitMode.ProfitPercent:
-                //desiMon = (mRobot.Account.Balance - mRobot.Account.Margin) * value / 100;
+                //desiMon = (AbstractRobot.Account.Balance - AbstractRobot.Account.Margin) * value / 100;
                 //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon, tpPts, CommissionPerLot(symbol));
                 //break;
 
@@ -649,9 +653,9 @@ namespace RobotLib
                 //case ProfitMode.RiskConstant:
                 //case ProfitMode.RiskReinvest:
                 //var balance = ProfitMode.RiskReinvest == profitMode
-                //   ? mRobot.Account.Balance
+                //   ? AbstractRobot.Account.Balance
                 //   : mInitialAccountBalance;
-                //double moneyToRisk = (balance - mRobot.Account.Margin) * value / 100;
+                //double moneyToRisk = (balance - AbstractRobot.Account.Margin) * value / 100;
                 //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, moneyToRisk, riskPoints, CommissionPerLot(symbol));
                 //desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
                 //break;
@@ -688,7 +692,7 @@ namespace RobotLib
 
             normalizedVolume = symbol.NormalizeVolumeInUnits(
                symbol.QuantityToVolumeInUnits(
-               //Math.Max(ParentBot.mRobot.mRobot.LotPoint(ParentBot.BotSymbol),
+               //Math.Max(ParentBot.AbstractRobot.AbstractRobot.LotPoint(ParentBot.BotSymbol),
                rawVolume));
 
             return retVal;
@@ -745,7 +749,7 @@ namespace RobotLib
             var sSwapLong = ConvertUtils.DoubleToString(SwapPerLot(mRobot.Symbol, true), 2) + sCurrency;
             var sSwapShort = ConvertUtils.DoubleToString(SwapPerLot(mRobot.Symbol, false), 2) + sCurrency;
 
-            //var com = mRobot.SymbolName.com
+            //var com = AbstractRobot.SymbolName.com
 
             string sB2NyTime = "";
             DateTime tNyt = mCurrentTime;// CreateTime(TimeUtils.TimeUtc2Nyt(mCurrentTime.ToNativeSec(), false));
@@ -768,8 +772,8 @@ namespace RobotLib
             var pointValue = mRobot.Symbol.TickValue * pointFactor; // TickValue is in USD per 1 Point
             var platform = "Lot";
 #else
-            // public double TickValue => mRobot.Instrument.MasterInstrument.TickSize
-            // * mRobot.Instrument.MasterInstrument.PointValue;
+            // public double TickValue => AbstractRobot.Instrument.MasterInstrument.TickSize
+            // * AbstractRobot.Instrument.MasterInstrument.PointValue;
             var pointValue = mRobot.Symbol.TickValue / mRobot.Symbol.TickSize;
             var platform = "Contract";
 #endif
@@ -797,7 +801,7 @@ namespace RobotLib
             mRobot.Chart.DrawStaticText(
                "Comment4",
                "\n\n\n" + cCommentTab + "Account-Leverage: 1:" + ConvertUtils.DoubleToString(mRobot.Account.PreciseLeverage, 0)
-               //+ ", " + mRobot.SymbolName.Name + "-Leverage: " + sSymLev,  // cTrader does not have SymbolName-Leverages
+               //+ ", " + mAbstractRobot.SymbolName.Name + "-Leverage: " + sSymLev,  // cTrader does not have SymbolName-Leverages
                , VerticalAlignment.Top,
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
@@ -816,12 +820,12 @@ namespace RobotLib
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
 
-            /*mRobot.Chart.DrawStaticText(
+            /*mAbstractRobot.Chart.DrawStaticText(
                "Comment7",
                "\n\n\n\n\n\n" + cCommentTab + "New York Time" + (normNyTime ? " normalized: " : ": ") + sNyTime + sB2NyTime,
                VerticalAlignment.Top,
                HorizontalAlignment.Left,
-               mRobot.Chart.ColorSettings.ForegroundColor);*/
+               mAbstractRobot.Chart.ColorSettings.ForegroundColor);*/
 #endif
             string[] lines = comment.Split('\n');
             string skipLines = "";
@@ -1378,11 +1382,28 @@ namespace RobotLib
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
         }
 
-        public QcBars GetQcBars(int barPeriodSeconds,
+        public IQcBars GetQcBars(int barPeriodSeconds,
             string symbolPair,
-            string folderPath)
+            string folderPath,
+            DateTime initDateTime)
         {
-            mQcBarList.Add(new QcBars(folderPath, symbolPair, barPeriodSeconds));
+#if CTRADER
+            mQcBarList.Add(new CtOrgBars(mRobot, this, symbolPair, barPeriodSeconds));
+#else
+            mQcBarList.Add(new NinjaTraderQcBars(mRobot, symbolPair, barPeriodSeconds));
+#endif
+            return mQcBarList.Last();
+        }
+
+        public IQcBars GetOrgBars(int barPeriodSeconds,
+            string symbol,
+            DateTime initDateTime)
+        {
+#if CTRADER
+            mQcBarList.Add(new CtOrgBars(mRobot, this, symbol, barPeriodSeconds));
+#else
+            mQcBarList.Add(new NinjaTraderQcBars(mRobot, symbol, barPeriodSeconds));
+#endif
             return mQcBarList.Last();
         }
         #endregion
@@ -1393,7 +1414,6 @@ namespace RobotLib
         public MarketData MarketData => mRobot.MarketData;
         public DateTime Time => mRobot.Time;
         public Chart Chart => mRobot.Chart;
-        public Bars Bars => mRobot.Bars;
         public IAccount Account => mRobot.Account;
         #endregion
     }
