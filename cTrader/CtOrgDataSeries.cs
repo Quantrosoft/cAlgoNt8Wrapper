@@ -63,7 +63,9 @@ namespace TdsCommons
         //     Number of bars ago
         public double Last(int index)
         {
-            return ((long)mDataSeries.Last(index) >> mShift) & 0xffffffff;
+            return 0 == mShift
+                ? mDataSeries.Last(index)
+                : ((long)mDataSeries.Last(index) >> mShift) & 0xffffffff;
         }
 
         //     Gets the total number of elements contained in the NtQcDataSeries.
