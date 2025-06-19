@@ -156,11 +156,11 @@ namespace TdsCommons
         /// </summary>
         MODE_TICKSIZE = 17,
         /// <summary>
-        /// Swap of the long position. 
+        /// Swap of the long mPosition. 
         /// </summary>
         MODE_SWAPLONG = 18,
         /// <summary>
-        /// Swap of the short position. 
+        /// Swap of the short mPosition. 
         /// </summary>
         MODE_SWAPSHORT = 19,
         /// <summary>

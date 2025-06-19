@@ -101,12 +101,12 @@ namespace TdsCommons
     {
         #region Private variables
         /// <summary>
-        /// The write position within the ring buffer (head pointer)
+        /// The write mPosition within the ring buffer (head pointer)
         /// </summary>
         protected int mWritePosition;
 
         /// <summary>
-        /// The read position within the ring buffer (tail pointer)
+        /// The read mPosition within the ring buffer (tail pointer)
         /// </summary>
         protected int mReadPosition;
 
@@ -444,7 +444,7 @@ namespace TdsCommons
                 if (mTotalWritten - mTotalRead >= Size)
                 {
                     dataOverwritten = true;
-                    // Move read position forward to maintain buffer size
+                    // Move read mPosition forward to maintain buffer size
                     mReadPosition = (mReadPosition + 1) % Size;
                     mTotalRead++;
                 }
@@ -709,7 +709,7 @@ namespace TdsCommons
 
         #region Legacy Methods
         /// <summary>
-        /// Legacy indexer - gets item by relative position (0 = oldest, Count-1 = newest)
+        /// Legacy indexer - gets item by relative mPosition (0 = oldest, Count-1 = newest)
         /// </summary>
         public T this[int relPos]
         {
@@ -820,11 +820,11 @@ namespace TdsCommons
     public static class MemoryMappedViewAccessorExtensions
     {
         /// <summary>
-        /// Reads a struct of type T from the specified position in the memory-mapped file
+        /// Reads a struct of type T from the specified mPosition in the memory-mapped file
         /// </summary>
         /// <typeparam name="T">The struct type to read</typeparam>
         /// <param name="accessor">The MemoryMappedViewAccessor instance</param>
-        /// <param name="position">The position to read from</param>
+        /// <param name="position">The mPosition to read from</param>
         /// <returns>The struct read from memory</returns>
         public static T ReadStruct<T>(this MemoryMappedViewAccessor accessor, long position) where T : struct
         {
@@ -847,11 +847,11 @@ namespace TdsCommons
         }
 
         /// <summary>
-        /// Writes a struct of type T to the specified position in the memory-mapped file
+        /// Writes a struct of type T to the specified mPosition in the memory-mapped file
         /// </summary>
         /// <typeparam name="T">The struct type to write</typeparam>
         /// <param name="accessor">The MemoryMappedViewAccessor instance</param>
-        /// <param name="position">The position to write to</param>
+        /// <param name="position">The mPosition to write to</param>
         /// <param name="structure">The struct to write</param>
         public static void WriteStruct<T>(this MemoryMappedViewAccessor accessor, long position, T structure) where T : struct
         {

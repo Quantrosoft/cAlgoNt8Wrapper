@@ -34,9 +34,9 @@ namespace TdsCommons
     {
         #region Private variables
         /// <summary>
-        /// The all-over position within the ring buffer. The position 
+        /// The all-over mPosition within the ring buffer. The mPosition 
         /// increases continously by adding new items to the buffer. This 
-        /// value is needed to calculate the current relative position within the 
+        /// value is needed to calculate the current relative mPosition within the 
         /// buffer.
         /// </summary>
         protected int mPosition;
@@ -110,10 +110,10 @@ namespace TdsCommons
 
         #region Methods
         /// <summary>
-        /// Gets or sets an item for a specified position within the ring buffer.
+        /// Gets or sets an item for a specified mPosition within the ring buffer.
         /// </summary>
-        /// <param name="index">The position to get or set an item.</param>
-        /// <returns>The fond item at the specified position within the ring buffer.
+        /// <param name="index">The mPosition to get or set an item.</param>
+        /// <returns>The fond item at the specified mPosition within the ring buffer.
         /// </returns>
         /// <exception cref="IndexOutOfRangeException"></exception>
         public T this[int relPos]
@@ -125,7 +125,7 @@ namespace TdsCommons
                 // validate the index
                 if (relPos < 0 || relPos >= Size)
                     throw new IndexOutOfRangeException();
-                // calculate the relative position within the rolling base array
+                // calculate the relative mPosition within the rolling base array
                 return mBuffer[(mPosition + Size - relPos - 1) % Size];
             }
 
@@ -172,16 +172,16 @@ namespace TdsCommons
         /// <param name="item">The item to be added to the buffer.</param>
         public virtual void Add(T item, out int ndx, out T fallOut)
         {
-            // return the absolute falling out position
+            // return the absolute falling out mPosition
             ndx = mPosition;
 
             // return the falling out value
             fallOut = mBuffer[mPosition];
 
-            // add a new item to the current relative position within the buffer and increase the position
+            // add a new item to the current relative mPosition within the buffer and increase the mPosition
             mBuffer[mPosition] = item;
 
-            // increase position
+            // increase mPosition
             mPosition = ++mPosition % Size;
 
             // increase the count if Size is not yet reached
@@ -212,13 +212,13 @@ namespace TdsCommons
 
         public void Bump(out int ndx, out T fallOut)
         {
-            // return the absolute falling out position
+            // return the absolute falling out mPosition
             ndx = mPosition;
 
             // return the falling out value
             fallOut = mBuffer[mPosition];
 
-            // increase position
+            // increase mPosition
             mPosition = ++mPosition % Size;
 
             // increase the count if Size is not yet reached
@@ -270,7 +270,7 @@ namespace TdsCommons
         /// Copies the current items within the buffer to a specified array.
         /// </summary>
         /// <param name="array">The target array to copy the items of the buffer to.</param>
-        /// <param name="arrayIndex">The start position witihn the target
+        /// <param name="arrayIndex">The start mPosition witihn the target
         /// array to start copying.</param>
         public void CopyTo(T[] array, int arrayIndex, int cnt)
         {
@@ -297,9 +297,9 @@ namespace TdsCommons
         }
 
         /// <summary>
-        /// Gets the position of a specied item within the ring buffer.
+        /// Gets the mPosition of a specied item within the ring buffer.
         /// </summary>
-        /// <param name="item">The item to get the current position for.</param>
+        /// <param name="item">The item to get the current mPosition for.</param>
         /// <returns>The zero based index of the found item within the 
         /// buffer. If the item was not present within the buffer, this
         /// method returns -1.</returns>
@@ -308,12 +308,12 @@ namespace TdsCommons
             // loop over the current count of items
             for (int i = 0; i < Count; i++)
             {
-                // get the item at the relative position within the public array
+                // get the item at the relative mPosition within the public array
                 T item2 = mBuffer[(mPosition - Count + i) % Size];
                 // if both items are null, return true
                 if (null == item && null == item2)
                     return i;
-                // if equal return the position
+                // if equal return the mPosition
                 if (item != null && item.Equals(item2))
                     return i;
             }
@@ -322,9 +322,9 @@ namespace TdsCommons
         }
 
         /// <summary>
-        /// Inserts an item at a specified position into the buffer.
+        /// Inserts an item at a specified mPosition into the buffer.
         /// </summary>
-        /// <param name="index">The position within the buffer to add 
+        /// <param name="index">The mPosition within the buffer to add 
         /// the new item.</param>
         /// <param name="item">The new item to be added to the buffer.</param>
         /// <exception cref="IndexOutOfRangeException"></exception>
@@ -335,8 +335,8 @@ namespace TdsCommons
         /// <b>Warning</b>
         /// Frequent usage of this method might become a bad idea if you are 
         /// working with a large buffer Size. The insertion of an item
-        /// at a specified position within the buffer causes all present 
-        /// items below the specified position to be moved one position.
+        /// at a specified mPosition within the buffer causes all present 
+        /// items below the specified mPosition to be moved one mPosition.
         /// </remarks>
         public void Insert(int index, T item)
         {
@@ -352,10 +352,10 @@ namespace TdsCommons
 
             // get the maximal count of items to be moved
             int count = Math.Min(Count, Size - 1) - index;
-            // get the relative position of the new item within the buffer
+            // get the relative mPosition of the new item within the buffer
             int index2 = (mPosition - Count + index) % Size;
 
-            // move all items below the specified position
+            // move all items below the specified mPosition
             for (int i = index2 + count; i > index2; i--)
             {
                 int to = i % Size;
@@ -386,50 +386,50 @@ namespace TdsCommons
         /// <b>Warning</b>
         /// Frequent usage of this method might become a bad idea if you are 
         /// working with a large buffer Size. The removing of an item 
-        /// requires a scan of the buffer to get the position of the specified
+        /// requires a scan of the buffer to get the mPosition of the specified
         /// item. If the item was found, the deletion requires a move of all 
-        /// items stored abouve the found position.
+        /// items stored abouve the found mPosition.
         /// </remarks>
         public bool Remove(T item)
         {
-            // find the position of the specified item
+            // find the mPosition of the specified item
             int index = IndexOf(item);
             // item was not found; return false
             if (index == -1)
                 return false;
-            // remove the item at the specified position
+            // remove the item at the specified mPosition
             RemoveAt(index);
             return true;
         }
 
         /// <summary>
-        /// Removes an item at a specified position within the buffer.
+        /// Removes an item at a specified mPosition within the buffer.
         /// </summary>
-        /// <param name="index">The position of the item to be removed.</param>
+        /// <param name="index">The mPosition of the item to be removed.</param>
         /// <exception cref="IndexOutOfRangeException"></exception>
         /// <remarks>
         /// <b>Warning</b>
         /// Frequent usage of this method might become a bad idea if you are 
         /// working with a large buffer Size. The deletion requires a move 
-        /// of all items stored abouve the found position.
+        /// of all items stored abouve the found mPosition.
         /// </remarks>
         public void RemoveAt(int index)
         {
             // validate the index
             if (index < 0 || index >= Count)
                 throw new IndexOutOfRangeException();
-            // move all items above the specified position one step
+            // move all items above the specified mPosition one step
             // closer to zeri
             for (int i = index; i < Count - 1; i++)
             {
-                // get the next relative target position of the item
+                // get the next relative target mPosition of the item
                 int to = (mPosition - Count + i) % Size;
-                // get the next relative source position of the item
+                // get the next relative source mPosition of the item
                 int from = (mPosition - Count + i + 1) % Size;
                 // move the item
                 mBuffer[to] = mBuffer[from];
             }
-            // get the relative position of the last item, which becomes empty
+            // get the relative mPosition of the last item, which becomes empty
             // after deletion and set the item as empty
             int last = (mPosition - 1) % Size;
             mBuffer[last] = default(T);

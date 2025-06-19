@@ -38,7 +38,7 @@ namespace TdsCommons
 
         public double this[int index] => Last(Count - 1 - index);
 
-        //     Gets the value in the dataseries at the specified position.
+        //     Gets the value in the dataseries at the specified mPosition.
         //
         // The philosophie of cTrader is to use array indexing
         // So [0] is the very 1st element while [Count-1] is the last element
