@@ -103,7 +103,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Gets the account deposit asset/currency
-        //Asset Asset { get; }
+        Asset Asset { get; }
 
         //
         // Summary:

@@ -148,11 +148,11 @@ namespace TdsCommons
         /// </summary>
         MODE_LOTSIZE = 15,
         /// <summary>
-        /// Tick value in the deposit currency. 
+        /// DataRate value in the deposit currency. 
         /// </summary>
         MODE_TICKVALUE = 16,
         /// <summary>
-        /// Tick size in the quote currency. 
+        /// DataRate size in the quote currency. 
         /// </summary>
         MODE_TICKSIZE = 17,
         /// <summary>
