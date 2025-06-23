@@ -24,6 +24,7 @@ using cAlgo.API;
 using cAlgo.API.Internals;
 #if !CTRADER
 using NinjaTrader.NinjaScript;
+using System.Xml.Serialization;
 #endif
 using System;
 using System.Collections.Generic;
@@ -110,7 +111,7 @@ namespace RobotLib
         public string Comment;
         public double Commissions;
         public double Swap;
-        public double AccountNetProfit;
+        public double NetProfit;
         public string OrderType;
     }
 
@@ -326,16 +327,20 @@ namespace RobotLib
         public bool IsNinjaTrader;
         public bool IsCtrader;
         // Own accounting since cTrader does have a bug in limit accounting
-        public double AccountNetProfit, AccountGrossProfit, AccountWinProfit, AccountLossProfit;
+        public double NetProfit, GrossProfit, AccountWinProfit, AccountLossProfit;
         public double AccountEquity, AccountBalance;
-        public int AccountWinningTrades, AccountLoosingTrades;
+        public int AccountWinningTrades, AccountLoosingTrades, TotalTrades;
         public int SameTimeOpen, SameTimeOpenCount, MaxEquityDrawdownCount;
-        public int MaxBalanceDrawdownCount, TotalTrades, WinningTrades, LoosingTrades;
+        public int MaxBalanceDrawdownCount, OpenDurationCount;
 
         public double StartBalance, MaxEquityDrawdownValue, Calmar, TradesPerMonth, mChanceRiskRatio;
         public double ProfitConstanceness, ProfitFactor, MaxEquity, MaxMargin, MaxBalanceDrawdownValue;
         public double MaxBalance;
         public DateTime SameTimeOpenDateTime, MaxBalanceDrawdownTime, MaxEquityDrawdownTime;
+        public TimeSpan MinOpenDuration = new TimeSpan(long.MaxValue);
+        public TimeSpan OpenDurationSum = new TimeSpan(0);
+        public TimeSpan AvgOpenDuration = new TimeSpan(0);
+        public TimeSpan MaxOpenDuration = new TimeSpan(0);
 
         protected Robot mRobot;
         protected ILogger mLogger;
@@ -604,16 +609,18 @@ namespace RobotLib
 
             PreTick();
 
+            TotalTrades = AccountWinningTrades + AccountLoosingTrades;
             ProfitFactor = AccountWinProfit / AccountLossProfit;
+            var netProfit = AccountWinProfit - AccountLossProfit;
             TradesPerMonth = ((double)TotalTrades / ((Time - InitialTime).TotalDays / 365)) / 12;
             ProfitConstanceness = CalculateGoodnessOfFit(mRobot.History) * 100; // R² = 1 means perfect fit, R² = 0 means no fit
 
-            var annualProfit = AccountNetProfit / ((Time - InitialTime).TotalDays / 365);
+            var annualProfit = netProfit / ((Time - InitialTime).TotalDays / 365);
             var annualProfitPercent = 0 == TotalTrades ? 0 : 100.0 * annualProfit / InitialAccountBalance;
             var maxCurrentEquityDdPercent = 100 * MaxEquityDrawdownValue / MaxEquity;
             var maxStartEquityDdPercent = 100 * MaxEquityDrawdownValue / InitialAccountBalance;
             Calmar = 0 == MaxEquityDrawdownValue ? 0 : annualProfit / MaxEquityDrawdownValue;
-            var winningRatioPercent = 0 == TotalTrades ? 0 : 100 * (double)WinningTrades / TotalTrades;
+            var winningRatioPercent = 0 == TotalTrades ? 0 : 100 * (double)AccountWinningTrades / TotalTrades;
 #if !CTRADER
             //var AverageEtd = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageEtd;
             //var AverageMae = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageMae;
@@ -646,13 +653,13 @@ namespace RobotLib
                 + " " + ConvertUtils.DoubleToString(MaxEquityDrawdownValue, 2)
                + "; @ " + MaxEquityDrawdownTime.ToString("dd.MM.yyyy HH:mm:ss")
                + "; Count# " + MaxEquityDrawdownCount.ToString();
-            infoText += "\nMax Current Equity Drawdown %: " 
+            infoText += "\nMax Current Equity Drawdown %: "
                 + ConvertUtils.DoubleToString(maxCurrentEquityDdPercent, 2);
-            infoText += "\nMax Start Equity Drawdown %: " 
+            infoText += "\nMax Start Equity Drawdown %: "
                 + ConvertUtils.DoubleToString(maxStartEquityDdPercent, 2);
-            infoText += "\nNet Profit: " + Account.Asset + " " 
-                + ConvertUtils.DoubleToString(AccountNetProfit, 2);
-            infoText += "\nProfit Factor: " + (0 == LoosingTrades
+            infoText += "\nNet Profit: " + Account.Asset + " "
+                + ConvertUtils.DoubleToString(netProfit, 2);
+            infoText += "\nProfit Factor: " + (0 == AccountLoosingTrades
                 ? "-"
                 : ConvertUtils.DoubleToString(ProfitFactor, 2));
             //infoText += "\nSharpe Ratio: " + ConvertUtils.DoubleToString(SharpeRatio, 2);
@@ -661,19 +668,27 @@ namespace RobotLib
             infoText += "\nProfit Constanceness %: " + ConvertUtils.DoubleToString(ProfitConstanceness, 2);
             infoText += "\nWinning Ratio: " + ConvertUtils.DoubleToString(winningRatioPercent, 2);
             infoText += "\nTrades Per Month: " + ConvertUtils.DoubleToString(TradesPerMonth, 2);
-            infoText += "\nAverage Annual Profit Percent: " 
+            infoText += "\nAverage Annual Profit Percent: "
                 + ConvertUtils.DoubleToString(annualProfitPercent, 2);
 
+            if (0 != OpenDurationCount)
+            {
+                infoText += "\nMin / Avg / Max Tradeopen Duration (Day.Hour.Min.Sec): "
+                   + MinOpenDuration.ToString(@"dd\.hh\.mm\.ss") + " / "
+                   + (AvgOpenDuration = TimeSpan.FromTicks(OpenDurationSum.Ticks / OpenDurationCount))
+                   .ToString(@"dd\.hh\.mm\.ss")
+                   + " / " + MaxOpenDuration.ToString(@"dd\.hh\.mm\.ss");
+            }
             return infoText;
         }
 
         public void UpdateProfit()
         {
-            AccountGrossProfit = AccountNetProfit = 0;
+            GrossProfit = NetProfit = 0;
             foreach (var pos in mRobot.Positions)
-                (AccountGrossProfit, AccountNetProfit) = GetAccountNetProfitFromLabel(pos);
+                (GrossProfit, NetProfit) = GetAccountNetProfitFromLabel(pos);
 
-            AccountEquity = AccountBalance + AccountNetProfit;
+            AccountEquity = AccountBalance + NetProfit;
 
             if (Account.Balance != AccountBalance)
             { }
@@ -1058,7 +1073,7 @@ namespace RobotLib
                    + ",PointValue"                                          // 4. tickvalue
                    + ",DiffPts"                                             // 5. DiffActPts
                    + ",DiffGross"                                           // 6. DiffActCurrency
-                   + ",AccountNetProfit"                                           // 7. net profit
+                   + ",NetProfit"                                    // 7. net profit
                    + ",NetProf/Lot"                                         // 8. net profit per lot
                    + ",AccountMargin"                                       // 9. Account Margin
                    + ",TradeMargin"                                         // 10. Margin of this single trade
@@ -1112,7 +1127,7 @@ namespace RobotLib
                * (lp.ClosingPrice - lp.EntryPrice);
             int pointDiff = iPrice(priceDiff, lp.Symbol.TickSize);
             var lotDigits = (int)(0.5 + Math.Log10(1 / lp.Minlots));
-            mLoggingSaldo += lp.AccountNetProfit;
+            mLoggingSaldo += lp.NetProfit;
 
             foreach (var part in mHeaderSplit)
             {
@@ -1233,12 +1248,12 @@ namespace RobotLib
                     mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(CalcPointsAndLot2Money(lp.Symbol, pointDiff, lp.Lots), 2));
                     continue;
 
-                    case "AccountNetProfit":
-                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(lp.AccountNetProfit, 2));
+                    case "NetProfit":
+                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(lp.NetProfit, 2));
                     continue;
 
                     case "NetProf/Lot":
-                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(lp.AccountNetProfit / lp.Lots, 2));
+                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(lp.NetProfit / lp.Lots, 2));
                     continue;
 
                     case "AccountMargin":
@@ -1506,18 +1521,18 @@ namespace RobotLib
 
         public TradeResult CloseTrade(Position position)
         {
-            if (AccountNetProfit >= 0)
+            if (NetProfit >= 0)
             {
-                AccountWinProfit += AccountNetProfit;
+                AccountWinProfit += NetProfit;
                 AccountWinningTrades++;
             }
             else
             {
-                AccountLossProfit += -AccountNetProfit;
+                AccountLossProfit += -NetProfit;
                 AccountLoosingTrades++;
             }
 
-            AccountBalance += AccountNetProfit;
+            AccountBalance += NetProfit;
 
             return position.Close();
         }
@@ -1567,8 +1582,8 @@ namespace RobotLib
                 position.CurrentPrice, trueOpenPrice)
                     * position.VolumeInUnits * position.Symbol.TickValue / position.Symbol.TickSize,
                 position.Symbol.Digits);
-            var AccountNetProfit = grossProfit + position.Commissions + position.Swap;
-            return (grossProfit, AccountNetProfit);
+            var NetProfit = grossProfit + position.Commissions + position.Swap;
+            return (grossProfit, NetProfit);
         }
 
         // returns R² of HistoricalTrade AccountNetProfits over the time
@@ -1579,7 +1594,7 @@ namespace RobotLib
             if (sortedTrades.Count < 2)
                 return double.NaN;
 
-            // X = time (double), Y = cumulative AccountNetProfit
+            // X = time (double), Y = cumulative NetProfit
             var x = sortedTrades.Select(t => t.ClosingTime.ToOADate()).ToArray();
             var y = sortedTrades
                 .Select(t => t.NetProfit)
