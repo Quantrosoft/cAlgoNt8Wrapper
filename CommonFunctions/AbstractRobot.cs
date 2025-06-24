@@ -354,80 +354,6 @@ namespace RobotLib
         protected DateTime cInvalidTime;
 
         private string[] mHeaderSplit;
-        private Dictionary<string, string> mSymbolDictionary = new Dictionary<string, string>
-        {
-            { "SURVEY", "Unknown" },
-            { "MONKEY", "Unknown" },
-            { "DASH", "Unknown" },        //{ "DASH", "DSHUSD" },
-            { "CANOPY", "Unknown" },
-            { "APHRIA", "Unknown" },
-            { "GAZPROM", "Unknown" },
-            { "NOVATEK", "Unknown" },
-            { "SPOTIFY", "Unknown" },
-            { "USDRUB", "Unknown" },
-            { "EURRUB", "Unknown" },
-            { "SLACK", "Unknown" },
-            { "NORILSK", "Unknown" },
-            { "NOLISK", "Unknown" },
-            { "NICKEL", "Unknown" },
-            { "RUSSIA50", "Unknown" },
-            { "FACEBOOK", "Unknown" },
-            { "RALPH", "Unknown" },
-            { "LAUREN", "Unknown" },
-            { "USDUPY", "USDJPY" },
-
-            { "DOW", "US30" },            //{ "DOW", "YM" },
-            { "APPLE", "AAPL.US" },       //{ "APPLE", "Apple" },
-            { "BRENT", "SpotBrent" },     //{ "BRENT", "BRN" },
-            //{ "BRENT", "Brent-F" },     //{ "BRENT", "BRN" },
-            //{ "BRENT", "Cude-F" },     //{ "BRENT", "BRN" },
-            { "BMW", "BMWd.DE" },         //{ "BMW", "BMW" },
-            { "DEUTSCHE", "DBKd.DE" },    // { "DEUTSCHE", "Deutsche_Bank" }
-            { "BANK", "DBKd.DE" },        // { "DEUTSCHE", "Deutsche_Bank" }
-            { "VOLKSWAGEN", "VOWd.DE" },  // { "VOLKSWAGEN", "Volkswagen" }
-            { "BAYER", "BAYNd.DE" },      // { "BAYER", "Bayer" }
-            { "SAP", "SAPd.DE" },
-            { "AMAZON", "AMZN.US" },      // { "AMAZON", "Amazom" }
-            { "DAX", "GER40-F" },         // { "DAX", "FDAX" }
-            { "NQ", "NAS100" },
-            { "SP500", "US500" },
-            { "S&P", "US500" },
-            { "NASDAQ", "NAS100" },
-            { "CAC", "FRA40" },
-            { "SNAP", "SNAP.US" },
-            { "AURORA", "ACB.US" },
-            { "TILRAY", "TLRY.US" },
-            { "CRONOS", "CRON.US" },
-            { "TESLA", "TSLA.US" },
-            { "AIRBUS", "AIR.FR" },
-            { "KAFFEE", "Coffee" },
-            { "KAKAO", "Cocoa" },
-            { "WTI", "SpotCrude" },
-            { "SUGAR", "Sugar" },
-
-            { "NETFLIX", "NFLX.US" },
-            { "DAIMLER", "MBGd.DE" },
-            { "MASTERCARD", "MA.US" },
-            { "BOEING", "BA.US" },
-            { "BEOING", "BA.US" },
-            { "AMERICAN", "AXP.US" },
-            { "EXPRESS", "AXP.US" },
-            { "MODERNA", "MRNA.US" },
-            { "TRIPADVISOR", "TRIP.US" },
-            { "STARBUCKS", "SBUX.US" },
-            { "PINTEREST", "PINS.US" },
-            { "GOOGLE", "GOOGL.US" },
-            { "MCDONALDS", "MCD.US" },
-
-            { "GOLD", "XAUUSD" },
-            { "BITCOIN", "BTCUSD" },
-            { "ETHEREUM", "ETHUSD" },
-            { "RIPPLE", "XRPUSD" },
-            { "LITECOIN", "LTCUSD" },
-            { "FTSE", "UK100" },
-            { "SILVER", "XAGUSD" },
-            { "SILBER", "XAGUSD" },
-      };
         private DataRateId mDataRateId;
         private List<IQcBars> mQcBarList = new List<IQcBars>();
 
@@ -679,6 +605,7 @@ namespace RobotLib
                    .ToString(@"dd\.hh\.mm\.ss")
                    + " / " + MaxOpenDuration.ToString(@"dd\.hh\.mm\.ss");
             }
+
             return infoText;
         }
 
@@ -1478,10 +1405,7 @@ namespace RobotLib
                 volume = symbol.NormalizeVolumeInUnits(volume);
                 var result = mRobot.ExecuteMarketOrder(tradeType, symbol.Name, volume, label, 0, 0, orderComment);
                 if (result.IsSuccessful)
-                {
-                    UpdateProfit();
                     return result.Position;
-                }
             }
             return null;
         }
@@ -1550,29 +1474,30 @@ namespace RobotLib
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
         }
 
+        // Get QcBars from Files or Memory Mapped Files
         public IQcBars GetQcBars(int barPeriodSeconds,
             string symbolPair,
             string folderPath,
             DateTime initDateTime)
         {
-#if CTRADER
-            mQcBarList.Add(new CtOrgBars(mRobot, this, symbolPair, barPeriodSeconds));
-#else
-            mQcBarList.Add(new NinjaTraderQcBars(mRobot, symbolPair, barPeriodSeconds));
-#endif
-            return mQcBarList.Last();
+            return null;
         }
 
-        public IQcBars GetOrgBars(int barPeriodSeconds,
-            string symbol,
-            DateTime initDateTime)
+        public IQcBars GetQcBars(TimeFrame timeframe, string symbolName)
         {
+            IQcBars bars = null;
 #if CTRADER
-            mQcBarList.Add(new CtOrgBars(mRobot, this, symbol, barPeriodSeconds));
+            bars = new CtOrgBars(mRobot, symbolName, Tf2Secs(timeframe));
 #else
-            mQcBarList.Add(new NinjaTraderQcBars(mRobot, symbol, barPeriodSeconds));
+            var barsSeconds = Tf2Secs(timeframe);
+            if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))
+            {
+                var ntBars = new NinjaTraderQcBars(mRobot, symbolName, barsSeconds);
+                mRobot.BarsDictionary.Add((barsSeconds, symbolName), ntBars);
+                bars = ntBars;
+            }
 #endif
-            return mQcBarList.Last();
+            return bars;
         }
 
         static public (double, double) GetAccountNetProfitFromLabel(Position position)
@@ -1623,7 +1548,6 @@ namespace RobotLib
         #region cTrader Api
         public void Print(string message, params object[] parameters) => mRobot.Print(message + parameters);
         public Symbols Symbols => mRobot.Symbols;
-        public MarketData MarketData => mRobot.MarketData;
         public DateTime Time => mRobot.Time;
         public Chart Chart => mRobot.Chart;
         public IAccount Account => mRobot.Account;

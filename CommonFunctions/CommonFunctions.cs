@@ -495,7 +495,8 @@ namespace TdsCommons
         AlaskaStandardTime_p9,
         HawaiiStandardTime_p10,
         SamoaStandardTime_p11,
-        BakerIslandTime_p12
+        BakerIslandTime_p12,
+        FromConfigFiles
     }
 
     public enum LogModes

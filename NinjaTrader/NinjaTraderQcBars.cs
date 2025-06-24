@@ -159,13 +159,13 @@ namespace cAlgo.API
                     BidHighPrices = new NtQcDataSeries(this, symbol, Robot.Highs[i]);
                     BidLowPrices = new NtQcDataSeries(this, symbol, Robot.Lows[i]);
                     BidClosePrices = new NtQcDataSeries(this, symbol, Robot.Closes[i]);
-                    BidVolumes = new NtVolumeSeries(this, Robot.Volumes[i]);
+                    BidVolumes = new NtVolumeSeries(this, BidAsk.Bid, Robot.Volumes[i]);
 
                     AskOpenPrices = new NtQcDataSeries(this, symbol, Robot.Opens[i]);
                     AskHighPrices = new NtQcDataSeries(this, symbol, Robot.Highs[i]);
                     AskLowPrices = new NtQcDataSeries(this, symbol, Robot.Lows[i]);
                     AskClosePrices = new NtQcDataSeries(this, symbol, Robot.Closes[i]);
-                    AskVolumes = new NtVolumeSeries(this, Robot.Volumes[i]);
+                    AskVolumes = new NtVolumeSeries(this, BidAsk.Ask, Robot.Volumes[i]);
 
                     symbol.SymbolBarIndex = i;
                 }

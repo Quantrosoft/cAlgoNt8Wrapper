@@ -48,6 +48,8 @@ namespace cAlgo.API
     {
         #region Members
         [XmlIgnore] public Symbol Symbol;
+        // Bars are now in AbstractRobot.cs as IQcBars QcBars
+        // because they are needed by both platforms now
         [XmlIgnore] public Symbols Symbols;
         [XmlIgnore] public new Account Account;
         [XmlIgnore] public new Positions Positions;
@@ -74,6 +76,10 @@ namespace cAlgo.API
             {"XTIUSD", "SpotCrude"},
             {"XNGUSD", "NatGas"}
         };
+        [XmlIgnore]
+        public Dictionary<(int, string), NinjaTraderQcBars> BarsDictionary
+            = new Dictionary<(int, string), NinjaTraderQcBars>();
+
         [Browsable(false)]
         [XmlIgnore]
         public new DateTime Time =>
@@ -92,7 +98,7 @@ namespace cAlgo.API
         {
             // Generate NinjaTrader bid and ask data series as pendants of requested cTrader NinjaTraderQcBars
             int count = 0;
-            foreach (KeyValuePair<(int, string), NinjaTraderQcBars> kvp in MarketData.BarsDictionary)
+            foreach (KeyValuePair<(int, string), NinjaTraderQcBars> kvp in BarsDictionary)
             {
                 if (0 == kvp.Value.BarsPeriod.Value)
                     throw new Exception($"Error: Bars Period Value may not be 0");
@@ -185,7 +191,6 @@ namespace cAlgo.API
                     PlatformTimeZoneInfo = Globals.GeneralOptions.TimeZoneInfo;
 
                     Symbols = new Symbols(this);
-                    MarketData = new MarketData(this);
                     Account = new Account(this);
                     Positions = new Positions(this);
                     PendingOrders = new PendingOrders(this);
@@ -198,15 +203,16 @@ namespace cAlgo.API
                     else if (BarsPeriod.BarsPeriodType == BarsPeriodType.Day)
                         dataRateSeconds *= SEC_PER_DAY;
 
-                    // Set default cTrader NinjaTraderQcBars and Symbol as pendant of NinjaTrader primary data series
-                    //QcBars = MarketData.GetBars(new mTimeFrame(dataRateSeconds), Instrument.FullName);
-                    Symbol = Symbols.GetSymbol(Instrument.FullName);
-
                     AbstractRobot.ConfigInit(this); // set time zone, open/close callbacks, etc.
+
+                    // Set default QcBars and Symbol as pendant of NinjaTrader primary data series
+                    var timeframe = AbstractRobot.Secs2Tf(dataRateSeconds, out _);
+                    AbstractRobot.QcBars = AbstractRobot.GetQcBars(timeframe, Instrument.FullName);
+                    Symbol = Symbols.GetSymbol(Instrument.FullName);
 
                     // New NinjaTraderQcBars and Symbols can and must be added here
                     OnConfigure();      // Call user's bot init 1st time OnConfigure
-                    InitDataSeries();   // Add NtQcDataSeries as reqested in MarketData.GetBars
+                    InitDataSeries();   // Add NtQcDataSeries as reqested GetQcBars()
                     #endregion
                 }
                 break;
@@ -214,18 +220,18 @@ namespace cAlgo.API
                 case State.DataLoaded:
                 {
                     if (IsTickReplay)
-                        Debug.Assert(BarsArray.Length == MarketData.BarsDictionary.Count,
+                        Debug.Assert(BarsArray.Length == BarsDictionary.Count,
                             "Error: Number of BarsArray does not match number of MarketData.BarsDictionary");
                     else
                     {
-                        Debug.Assert(BarsArray.Length == 2 * MarketData.BarsDictionary.Count,
+                        Debug.Assert(BarsArray.Length == 2 * BarsDictionary.Count,
                             "Error: Number of BarsArray does not match number of MarketData.BarsDictionary");
 
                         MarketDataEventArgs = new MarketDataEventArgs();
                     }
 
                     // Init bars and their series 
-                    foreach (var bars in MarketData.BarsDictionary)
+                    foreach (var bars in BarsDictionary)
                         bars.Value.OnBarsDataLoaded();
                 }
                 break;
@@ -295,7 +301,7 @@ namespace cAlgo.API
                 try
                 {
                     // Update the bars with the new market data
-                    foreach (var bar in MarketData.BarsDictionary)
+                    foreach (var bar in BarsDictionary)
                         bar.Value.OnBarsMarketData();
 
                     if (mDoStart)

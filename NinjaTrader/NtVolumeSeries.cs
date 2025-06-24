@@ -28,16 +28,22 @@ namespace cAlgo.API
     public class NtVolumeSeries : ISeries<double>, IQcDataSeries
     {
         private NinjaTraderQcBars mBars;
+        private bool mIsAsk;
+        private bool mIsBid;
+
         // With TickReplay we use our own Ringbuffer
         private Ringbuffer<long> mTickReplayData;
         // Without TickReplay we redirect directly to Ninja series
         private NinjaTrader.NinjaScript.VolumeSeries mNinjaVolumeSeries;
-        private long mAskVolume;
-        private long mBidVolume;
+        private long mVolume;
 
-        public NtVolumeSeries(NinjaTraderQcBars bars, NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries)
+        public NtVolumeSeries(NinjaTraderQcBars bars,
+            BidAsk bidAsk,
+            NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries)
         {
             mBars = bars;
+            mIsAsk = bidAsk == BidAsk.Ask;
+            mIsBid = bidAsk == BidAsk.Bid;
             mNinjaVolumeSeries = ninjaVolumeSeries;
             mTickReplayData = new Ringbuffer<long>(NinjaTraderQcBars.TickReplaySize);
         }
@@ -48,17 +54,20 @@ namespace cAlgo.API
             if (mBars.IsNewBar)
             {
                 mTickReplayData.Add(0);
-                mAskVolume = mBidVolume = 0; // reset volumes at the start of a new bar
+                mVolume = 0; // reset volumes at the start of a new bar
             }
 
             // Accumulate volumes
-            if (args.Ask != args.Bid)   // add no volume if prices are equal
-                if (args.Price >= args.Ask)
-                    mAskVolume += args.Volume;
-                else if (args.Price <= args.Bid)
-                    mBidVolume += args.Volume;
+            if (args.Ask != args.Bid)   // do not add volume if prices are equal
+            {
+                if (mIsAsk && args.Price >= args.Ask)
+                    mVolume += args.Volume;
 
-            mTickReplayData.Swap(mAskVolume << 34 | mBidVolume << 2);
+                if (mIsBid && args.Price <= args.Bid)
+                    mVolume += args.Volume;
+            }
+
+            mTickReplayData.Swap(mVolume);
         }
 
         //     An indexer used to access the NtVolumeSeries array

@@ -44,19 +44,17 @@ namespace TdsCommons
         public int TimeFrameSeconds { get; }
         public int Count => OpenTimes.Count;
         public string SymbolName => mSymbol;
-        public bool IsNewBar => CoFu.IsNewBar(TimeFrameSeconds, mAbstractRobot.Time, mAbstractRobot.PrevTime);
+        public bool IsNewBar { get; private set; }
 
         private TimeFrame mTimeFrame;
         private Robot mBot;
-        private AbstractRobot mAbstractRobot;
         private string mSymbol;
         private Bars mBars;
         #endregion
 
-        public CtOrgBars(Robot robot, AbstractRobot abstractRobot, string symbol, int barPeriodSeconds)
+        public CtOrgBars(Robot robot, string symbol, int barPeriodSeconds)
         {
             mBot = robot;
-            mAbstractRobot = abstractRobot;
             mSymbol = symbol;
             TimeFrameSeconds = barPeriodSeconds;
             mTimeFrame = AbstractRobot.Secs2Tf(barPeriodSeconds, out _);
@@ -75,7 +73,10 @@ namespace TdsCommons
             AskVolumes = new CtOrgDataSeries(mBars.TickVolumes, 34);
         }
 
-        public void OnTick(DateTime fromTime, DateTime prevTime) { }
+        public void OnTick(DateTime fromTime, DateTime prevTime)
+        {
+            IsNewBar = CoFu.IsNewBar(TimeFrameSeconds, fromTime, prevTime);
+        }
     }
 }
 #endif
