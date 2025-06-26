@@ -73,7 +73,8 @@ namespace cAlgo.API
             if (mBars.Robot.IsTickReplay)
             {
                 var nativeTime = mTickReplayData[index].ToNativeSec();
-                return (nativeTime - (nativeTime % mBars.BarsSeconds)).FromNativeSec();
+                return (nativeTime - (nativeTime % mBars.BarsSeconds)).FromNativeSec()
+                    + TimeSpan.FromSeconds(mBars.BarsSeconds);  // Correct wrong time from NinjaTrader
             }
             else
                 return mNinjaTimeSeries[index];
