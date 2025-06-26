@@ -99,11 +99,14 @@ namespace RobotLib.Cs
                 mLine += text.Replace("sep=,\n", "");
                 if (mLine.Contains("\n"))
                 {
+                    mLine = mLine.Replace("\r", "");
                     var splitLine = mLine.Split('\n');
                     var lastNdx = splitLine.Length - 1;
                     for (int i = 0; i < lastNdx; i++)
-                        mRobot.Print("Log | " + splitLine[i]);
-
+                    {
+                        var printText = splitLine[i].Replace(": ,", ": ");
+                        mRobot.Print("Log | " + printText);
+                    }
                     mLine = splitLine[lastNdx];
                 }
             }

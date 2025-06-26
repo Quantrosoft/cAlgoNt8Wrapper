@@ -1496,6 +1496,8 @@ namespace RobotLib
                 mRobot.BarsDictionary.Add((barsSeconds, symbolName), ntBars);
                 bars = ntBars;
             }
+            else
+                bars = mRobot.BarsDictionary[(barsSeconds, symbolName)];
 #endif
             return bars;
         }
