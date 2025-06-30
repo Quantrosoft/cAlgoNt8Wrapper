@@ -29,7 +29,7 @@ using static TdsDefs;
 
 namespace cAlgo.API
 {
-    public class NinjaTraderQcBars : IQcBars
+    public class NtQcBars : IQcBars
     {
         #region Members
         public IQcTimeSeries OpenTimes { get; private set; }
@@ -72,7 +72,7 @@ namespace cAlgo.API
         private string mSymbolName;
         #endregion
 
-        public NinjaTraderQcBars(Robot robot,
+        public NtQcBars(Robot robot,
             string symbolPair,
             int barPeriodSeconds)
         {

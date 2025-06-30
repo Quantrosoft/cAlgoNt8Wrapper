@@ -27,7 +27,7 @@ namespace cAlgo.API
 {
     public class NtVolumeSeries : ISeries<double>, IQcDataSeries
     {
-        private NinjaTraderQcBars mBars;
+        private NtQcBars mBars;
         private bool mIsAsk;
         private bool mIsBid;
 
@@ -37,7 +37,7 @@ namespace cAlgo.API
         private NinjaTrader.NinjaScript.VolumeSeries mNinjaVolumeSeries;
         private long mVolume;
 
-        public NtVolumeSeries(NinjaTraderQcBars bars,
+        public NtVolumeSeries(NtQcBars bars,
             BidAsk bidAsk,
             NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries)
         {
@@ -45,7 +45,7 @@ namespace cAlgo.API
             mIsAsk = bidAsk == BidAsk.Ask;
             mIsBid = bidAsk == BidAsk.Bid;
             mNinjaVolumeSeries = ninjaVolumeSeries;
-            mTickReplayData = new Ringbuffer<long>(NinjaTraderQcBars.TickReplaySize);
+            mTickReplayData = new Ringbuffer<long>(NtQcBars.TickReplaySize);
         }
 
         public void OnMarketData()
@@ -114,7 +114,7 @@ namespace cAlgo.API
         //     An int representing an absolute bar index value
         public double GetValueAt(int barIndex)
         {
-            return 0;   // NinjaTraderQcBars.GetVolume(barIndex);
+            return 0;   // NtQcBars.GetVolume(barIndex);
         }
 
         //     Indicates if the specified input is set at a barsAgo value relative to the current
@@ -125,7 +125,7 @@ namespace cAlgo.API
         //     An int representing from the current bar the number of historical bars to reference.
         public bool IsValidDataPoint(int barsAgo)
         {
-            return false;   // NinjaTraderQcBars.IsValidDataPoint(barsAgo);
+            return false;   // NtQcBars.IsValidDataPoint(barsAgo);
         }
 
         //     Indicates if the specified input is set at a specified bar index value
@@ -135,7 +135,7 @@ namespace cAlgo.API
         //     An int representing an absolute bar index value
         public bool IsValidDataPointAt(int barIndex)
         {
-            return false;// NinjaTraderQcBars.IsValidDataPointAt(barIndex);
+            return false;// NtQcBars.IsValidDataPointAt(barIndex);
         }
 
         public void Add(double value) { }

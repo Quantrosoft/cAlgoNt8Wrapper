@@ -127,24 +127,14 @@ namespace TdsCommons
         private MemoryMappedViewAccessor mAccessor;
 
         /// <summary>
-        /// Size of each item in bytes
+        /// Slots of each item in bytes
         /// </summary>
         private readonly int mItemSize;
-
-        /// <summary>
-        /// Total size of the memory-mapped file in bytes
-        /// </summary>
-        private readonly long mTotalSize;
 
         /// <summary>
         /// Name of the memory-mapped file
         /// </summary>
         private readonly string mMmfName;
-
-        /// <summary>
-        /// Whether this instance owns the memory-mapped file
-        /// </summary>
-        private bool mOwnsFile;
 
         /// <summary>
         /// Whether the object has been disposed
@@ -180,13 +170,14 @@ namespace TdsCommons
         /// Total number of items ever read from the buffer
         /// </summary>
         private long mTotalRead;
+        private int mDataOffset;
         #endregion
 
         #region Public variables
         /// <summary>
         /// Gets the maximal count of items within the ring buffer.
         /// </summary>
-        public int Size { get; private set; }
+        public int Slots { get; private set; }
 
         /// <summary>
         /// Get the current count of items within the ring buffer.
@@ -256,12 +247,12 @@ namespace TdsCommons
         /// <summary>
         /// Gets whether the buffer is full (all slots occupied)
         /// </summary>
-        public bool IsFull => Count == Size;
+        public bool IsFull => Count == Slots;
 
         /// <summary>
         /// Gets whether data has been lost due to overwriting
         /// </summary>
-        public bool HasDataLoss => TotalWritten - TotalRead > Size;
+        public bool HasDataLoss => TotalWritten - TotalRead > Slots;
         #endregion
 
         #region Constructors
@@ -272,47 +263,45 @@ namespace TdsCommons
         /// <param name="slots">The maximal count of items to be stored within the ring buffer.</param>
         /// <param name="mmfName">Optional name for the memory-mapped file. If null, a unique name will be generated.</param>
         /// <param name="createNew">If true, creates a new memory-mapped file. If false, tries to open existing one.</param>
-        public TickServer(int slots, string mmfName = null, bool createNew = true)
+        public TickServer(int slots, string mmfName)
         {
             if (slots <= 0)
                 throw new ArgumentException("Slots must be greater than zero", nameof(slots));
 
-            Size = slots;
+            Slots = slots;
+            mMmfName = mmfName;
+
             mItemSize = Marshal.SizeOf<T>();
-            mTotalSize = mItemSize * slots + sizeof(int) * 2 + sizeof(long) * 3; // metadata: writePos, readPos, version, totalWritten, totalRead
-            mMmfName = mmfName ?? $"RingBuffer_{Guid.NewGuid():N}";
+            mDataOffset = sizeof(int) * 3 + sizeof(long) * 3;
+            var totalSize = mDataOffset + mItemSize * slots;
 
             mLock = new ReaderWriterLockSlim();
             mSpaceAvailableEvent = new ManualResetEventSlim(true); // Start signaled
-            InitializeMemoryMappedFile(createNew);
-            LoadMetadata();
+            InitializeMemoryMappedFile(totalSize);
         }
 
         /// <summary>
         /// Creates a ring buffer that connects to an existing memory-mapped file.
         /// </summary>
         /// <param name="mmfName">Name of the existing memory-mapped file.</param>
+#pragma warning disable CA1416 // Validate platform compatibility
         public TickServer(string mmfName)
         {
             if (string.IsNullOrEmpty(mmfName))
                 throw new ArgumentException("Memory-mapped file name cannot be null or empty", nameof(mmfName));
 
             mMmfName = mmfName;
-            mOwnsFile = false;
+
+            mItemSize = Marshal.SizeOf<T>();
+            mDataOffset = sizeof(int) * 3 + sizeof(long) * 3;
             mLock = new ReaderWriterLockSlim();
             mSpaceAvailableEvent = new ManualResetEventSlim(true); // Start signaled
 
             try
             {
-#pragma warning disable CA1416 // Validate platform compatibility
                 mMmf = MemoryMappedFile.OpenExisting(mmfName);
-#pragma warning restore CA1416 // Validate platform compatibility
                 mAccessor = mMmf.CreateViewAccessor();
-
-                // Load metadata to determine size
                 LoadMetadata();
-                mItemSize = Marshal.SizeOf<T>();
-                mTotalSize = mItemSize * Size + sizeof(int) * 2 + sizeof(long) * 3;
             }
             catch (FileNotFoundException)
             {
@@ -323,76 +312,54 @@ namespace TdsCommons
         #endregion
 
         #region Memory-Mapped File Management
-        private void InitializeMemoryMappedFile(bool createNew)
+        private void InitializeMemoryMappedFile(int totalSize)
         {
             try
             {
-                if (createNew)
+                try
                 {
-                    mMmf = MemoryMappedFile.CreateNew(mMmfName, mTotalSize);
-                    mOwnsFile = true;
+                    mMmf = MemoryMappedFile.OpenExisting(mMmfName);
+                    mMmf.Dispose(); // Close existing handle
                 }
-                else
+                catch (FileNotFoundException)
                 {
-                    try
-                    {
-#pragma warning disable CA1416 // Validate platform compatibility
-                        mMmf = MemoryMappedFile.OpenExisting(mMmfName);
-#pragma warning restore CA1416 // Validate platform compatibility
-                        mOwnsFile = false;
-                    }
-                    catch (FileNotFoundException)
-                    {
-                        mMmf = MemoryMappedFile.CreateNew(mMmfName, mTotalSize);
-                        mOwnsFile = true;
-                    }
                 }
 
+                mMmf = MemoryMappedFile.CreateNew(mMmfName, totalSize);
                 mAccessor = mMmf.CreateViewAccessor();
 
-                if (createNew || mOwnsFile)
-                {
-                    // Initialize metadata if creating new file
-                    mWritePosition = 0;
-                    mReadPosition = 0;
-                    mVersion = 0;
-                    mTotalWritten = 0;
-                    mTotalRead = 0;
-                    SaveMetadata();
-                }
+                // Initialize metadata if creating new file
+                mWritePosition = 0;
+                mReadPosition = 0;
+                mVersion = 0;
+                mTotalWritten = 0;
+                mTotalRead = 0;
+                SaveMetadata();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new InvalidOperationException($"Failed to initialize memory-mapped file: {ex.Message}", ex);
+                throw new InvalidOperationException("cTrader must be closed when starting TickServer. Close cTrader");
             }
         }
 
         private void LoadMetadata()
         {
-            if (mAccessor == null)
-                return;
-
-            long offset = mTotalSize - (sizeof(int) * 2 + sizeof(long) * 3);
-            Size = mAccessor.ReadInt32(offset);
-            mWritePosition = mAccessor.ReadInt32(offset + sizeof(int));
-            mReadPosition = mAccessor.ReadInt32(offset + sizeof(int) * 2);
-            mVersion = mAccessor.ReadInt64(offset + sizeof(int) * 2 + sizeof(long) * 0);
-            mTotalWritten = mAccessor.ReadInt64(offset + sizeof(int) * 2 + sizeof(long) * 1);
-            mTotalRead = mAccessor.ReadInt64(offset + sizeof(int) * 2 + sizeof(long) * 2);
+            Slots = mAccessor.ReadInt32(0);
+            mWritePosition = mAccessor.ReadInt32(sizeof(int));
+            mReadPosition = mAccessor.ReadInt32(sizeof(int) * 2);
+            mVersion = mAccessor.ReadInt64(sizeof(int) * 3);
+            mTotalWritten = mAccessor.ReadInt64(sizeof(int) * 3 + sizeof(long) * 1);
+            mTotalRead = mAccessor.ReadInt64(sizeof(int) * 3 + sizeof(long) * 2);
         }
 
         private void SaveMetadata()
         {
-            if (mAccessor == null)
-                return;
-
-            long offset = mTotalSize - (sizeof(int) * 2 + sizeof(long) * 3);
-            mAccessor.Write(offset, Size);
-            mAccessor.Write(offset + sizeof(int), mWritePosition);
-            mAccessor.Write(offset + sizeof(int) * 2, mReadPosition);
-            mAccessor.Write(offset + sizeof(int) * 2 + sizeof(long) * 0, mVersion);
-            mAccessor.Write(offset + sizeof(int) * 2 + sizeof(long) * 1, mTotalWritten);
-            mAccessor.Write(offset + sizeof(int) * 2 + sizeof(long) * 2, mTotalRead);
+            mAccessor.Write(0, Slots);
+            mAccessor.Write(sizeof(int), mWritePosition);
+            mAccessor.Write(sizeof(int) * 2, mReadPosition);
+            mAccessor.Write(sizeof(int) * 3, mVersion);
+            mAccessor.Write(sizeof(int) * 3 + sizeof(long) * 1, mTotalWritten);
+            mAccessor.Write(sizeof(int) * 3 + sizeof(long) * 2, mTotalRead);
         }
 
         private int CalculateCount()
@@ -401,24 +368,18 @@ namespace TdsCommons
                 return 0;
 
             long diff = mTotalWritten - mTotalRead;
-            return (int)Math.Min(diff, Size);
+            return (int)Math.Min(diff, Slots);
         }
 
         private T ReadItem(int index)
         {
-            if (mAccessor == null)
-                throw new ObjectDisposedException(nameof(TickServer<T>));
-
-            long offset = index * mItemSize;
+            long offset = mDataOffset + index * mItemSize;
             return mAccessor.ReadStruct<T>(offset);
         }
 
         private void WriteItem(int index, T item)
         {
-            if (mAccessor == null)
-                throw new ObjectDisposedException(nameof(TickServer<T>));
-
-            long offset = index * mItemSize;
+            long offset = mDataOffset + index * mItemSize;
             mAccessor.WriteStruct(offset, item);
         }
         #endregion
@@ -441,17 +402,17 @@ namespace TdsCommons
                 bool dataOverwritten = false;
 
                 // Check if we're about to overwrite unread data
-                if (mTotalWritten - mTotalRead >= Size)
+                if (mTotalWritten - mTotalRead >= Slots)
                 {
                     dataOverwritten = true;
                     // Move read mPosition forward to maintain buffer size
-                    mReadPosition = (mReadPosition + 1) % Size;
+                    mReadPosition = (mReadPosition + 1) % Slots;
                     mTotalRead++;
                 }
 
                 // Write the new item
                 WriteItem(mWritePosition, item);
-                mWritePosition = (mWritePosition + 1) % Size;
+                mWritePosition = (mWritePosition + 1) % Slots;
                 mTotalWritten++;
                 mVersion++;
 
@@ -485,7 +446,7 @@ namespace TdsCommons
                 try
                 {
                     LoadMetadata();
-                    hasSpace = (mTotalWritten - mTotalRead) < Size;
+                    hasSpace = (mTotalWritten - mTotalRead) < Slots;
                 }
                 finally
                 {
@@ -503,7 +464,7 @@ namespace TdsCommons
                         LoadMetadata();
 
                         // Double-check we still have space
-                        if ((mTotalWritten - mTotalRead) >= Size)
+                        if ((mTotalWritten - mTotalRead) >= Slots)
                         {
                             // Space was taken by another thread, continue waiting
                             mSpaceAvailableEvent.Reset();
@@ -512,14 +473,15 @@ namespace TdsCommons
                         {
                             // We have space, write the item
                             WriteItem(mWritePosition, item);
-                            mWritePosition = (mWritePosition + 1) % Size;
+                            mWritePosition = (mWritePosition + 1) % Slots;
                             mTotalWritten++;
                             mVersion++;
 
                             SaveMetadata();
+                            LoadMetadata();
 
                             // If buffer is now full, reset the event
-                            if ((mTotalWritten - mTotalRead) >= Size)
+                            if ((mTotalWritten - mTotalRead) >= Slots)
                             {
                                 mSpaceAvailableEvent.Reset();
                             }
@@ -575,11 +537,11 @@ namespace TdsCommons
                     return false; // Buffer is empty
 
                 // Check if buffer was full before this dequeue
-                bool wasFullBefore = (mTotalWritten - mTotalRead) >= Size;
+                bool wasFullBefore = (mTotalWritten - mTotalRead) >= Slots;
 
                 // Read the oldest item
                 item = ReadItem(mReadPosition);
-                mReadPosition = (mReadPosition + 1) % Size;
+                mReadPosition = (mReadPosition + 1) % Slots;
                 mTotalRead++;
                 mVersion++;
 
@@ -678,7 +640,7 @@ namespace TdsCommons
                 for (int i = 0; i < count; i++)
                 {
                     result[i] = ReadItem(readPos);
-                    readPos = (readPos + 1) % Size;
+                    readPos = (readPos + 1) % Slots;
                 }
 
                 return result;
@@ -726,7 +688,7 @@ namespace TdsCommons
                     if (count == 0 || relPos < 0 || relPos >= count)
                         throw new IndexOutOfRangeException();
 
-                    int absoluteIndex = (mReadPosition + relPos) % Size;
+                    int absoluteIndex = (mReadPosition + relPos) % Slots;
                     return ReadItem(absoluteIndex);
                 }
                 finally
@@ -752,7 +714,7 @@ namespace TdsCommons
                 if (count == 0)
                     throw new InvalidOperationException("Buffer is empty");
 
-                int newestIndex = (mWritePosition - 1 + Size) % Size;
+                int newestIndex = (mWritePosition - 1 + Slots) % Slots;
                 return ReadItem(newestIndex);
             }
             finally

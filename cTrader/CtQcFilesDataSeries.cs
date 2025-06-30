@@ -20,57 +20,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
-using NinjaTrader.Data;
-using System;
 using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class NtQcDataSeries : IQcDataSeries
+    public class CtQcFilesDataSeries : IQcDataSeries
     {
-        //
-        // Summary:
-        //     Represents a read only list of values, typically used to represent market price
-        //     series. The values are accessed with an array-like [] operator.
-        private NtQcBars mBars;
-        private Symbol mSymbol;
-        // With TickReplay we use our own Ringbuffer
-        private Ringbuffer<double> mTickReplayData;
-        // Without TickReplay we redirect directly to Ninja series
-        private NinjaTrader.NinjaScript.PriceSeries mNinjaDataSeries;
+        private Ringbuffer<double> mQcData;
 
-        public NtQcDataSeries(NtQcBars bars, Symbol symbol,
-            NinjaTrader.NinjaScript.PriceSeries ninjaDataSeries)
+        public CtQcFilesDataSeries()
         {
-            mBars = bars;
-            mSymbol = symbol;
-            mNinjaDataSeries = ninjaDataSeries;
-            mTickReplayData = new Ringbuffer<double>(NtQcBars.TickReplaySize);
-        }
-
-        public void OnMarketData()
-        {
-            var args = mBars.Robot.MarketDataEventArgs;
-            if (mBars.IsNewBar || 0 == mTickReplayData.Count)
-                mTickReplayData.Add(args.Bid);
-
-            switch (mNinjaDataSeries.PriceType) // all series have the same PriceType
-            {
-                case PriceType.High:
-                mTickReplayData.Swap(Math.Max(mTickReplayData[0], args.Bid));
-                break;
-                case PriceType.Low:
-                mTickReplayData.Swap(Math.Min(mTickReplayData[0], args.Bid));
-                break;
-                case PriceType.Close:
-                mTickReplayData.Swap(args.Bid);
-                break;
-            }
+            mQcData = new Ringbuffer<double>(CtQcFilesBars.QcBarsSize);
         }
 
         public double this[int index] => Last(Count - 1 - index);
 
-        //     Gets the value in the dataseries at the specified position.
+        //     Gets the value in the dataseries at the specified mPosition.
         //
         // The philosophie of cTrader is to use array indexing
         // So [0] is the very 1st element while [Count-1] is the last element
@@ -89,7 +54,9 @@ namespace cAlgo.API
         public double LastValue => Last(0);
 
         //     Gets the total number of elements contained in the NtQcDataSeries.
-        public int Count => mNinjaDataSeries.Count;
+        public int Count => mQcData.AddCount;
+
+        public void OnMarketData() { }
 
         //     Access a value in the dataseries certain bars ago
         //
@@ -98,20 +65,22 @@ namespace cAlgo.API
         //     Number of bars ago
         public double Last(int index)
         {
-            if (mBars.Robot.IsTickReplay)
-                return mTickReplayData[index];
-            else
-            {
-                // Do not return end volume of current bar 0; would be future data
-                if (0 == index)
-                    return mSymbol.Bid;
-                else
-                    return mNinjaDataSeries[index];
-            }
+            return (long)mQcData[index];
         }
 
-        public void Add(double value) { }
-        public void Bump() { }
-        public void Swap(double value) { }
+        public void Add(double value)
+        {
+            mQcData.Add(value);
+        }
+
+        public void Bump()
+        {
+            mQcData.Bump();
+        }
+
+        public void Swap(double value)
+        {
+            mQcData.Swap(value);
+        }
     }
 }

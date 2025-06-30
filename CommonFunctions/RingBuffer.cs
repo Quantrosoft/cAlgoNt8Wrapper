@@ -70,12 +70,12 @@ namespace TdsCommons
         public int AddCount;
 
         /// <summary>
-        /// Count == Size
+        /// Count == Slots
         /// </summary>
         public bool IsBufferValid => Count == Size;
 
         /// <summary>
-        /// AddCount > Size happend at least once
+        /// AddCount > Slots happend at least once
         /// </summary>
         public bool IsFalloutValid;
         #endregion
@@ -87,7 +87,7 @@ namespace TdsCommons
         /// <param name="Size">The maximal count of items to be stored within the ring buffer.</param>
         public Ringbuffer(int _slots)
         {
-            // set Size and init the cache
+            // set Slots and init the cache
             Size = _slots;
             Array.Resize(ref mBuffer, _slots);
         }
@@ -184,7 +184,7 @@ namespace TdsCommons
             // increase mPosition
             mPosition = ++mPosition % Size;
 
-            // increase the count if Size is not yet reached
+            // increase the count if Slots is not yet reached
             if (Count < Size)
                 Count++;
 
@@ -221,7 +221,7 @@ namespace TdsCommons
             // increase mPosition
             mPosition = ++mPosition % Size;
 
-            // increase the count if Size is not yet reached
+            // increase the count if Slots is not yet reached
             if (Count < Size)
                 Count++;
 
@@ -334,7 +334,7 @@ namespace TdsCommons
         /// 
         /// <b>Warning</b>
         /// Frequent usage of this method might become a bad idea if you are 
-        /// working with a large buffer Size. The insertion of an item
+        /// working with a large buffer Slots. The insertion of an item
         /// at a specified mPosition within the buffer causes all present 
         /// items below the specified mPosition to be moved one mPosition.
         /// </remarks>
@@ -385,7 +385,7 @@ namespace TdsCommons
         /// <remarks>
         /// <b>Warning</b>
         /// Frequent usage of this method might become a bad idea if you are 
-        /// working with a large buffer Size. The removing of an item 
+        /// working with a large buffer Slots. The removing of an item 
         /// requires a scan of the buffer to get the mPosition of the specified
         /// item. If the item was found, the deletion requires a move of all 
         /// items stored abouve the found mPosition.
@@ -410,7 +410,7 @@ namespace TdsCommons
         /// <remarks>
         /// <b>Warning</b>
         /// Frequent usage of this method might become a bad idea if you are 
-        /// working with a large buffer Size. The deletion requires a move 
+        /// working with a large buffer Slots. The deletion requires a move 
         /// of all items stored abouve the found mPosition.
         /// </remarks>
         public void RemoveAt(int index)

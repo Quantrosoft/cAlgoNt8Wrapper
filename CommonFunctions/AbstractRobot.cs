@@ -327,7 +327,7 @@ namespace RobotLib
         public bool IsNinjaTrader;
         public bool IsCtrader;
         // Own accounting since cTrader does have a bug in limit accounting
-        public double NetProfit, GrossProfit, AccountWinProfit, AccountLossProfit;
+        public double AccountWinProfit, AccountLossProfit;
         public double AccountEquity, AccountBalance;
         public int AccountWinningTrades, AccountLoosingTrades, TotalTrades;
         public int SameTimeOpen, SameTimeOpenCount, MaxEquityDrawdownCount;
@@ -492,7 +492,7 @@ namespace RobotLib
             mRobot = robot;
             mTimeZoneId = timeZoneId;
             AccountEquity = AccountBalance = StartBalance = Account.Balance;
-
+            mRobot.Positions.Closed += OnPositionClosed;
             return "";
         }
 
@@ -505,6 +505,29 @@ namespace RobotLib
             PostTick();
             mIsInit = false;
             mIs1stTick = true;
+        }
+
+        private void OnPositionClosed(PositionClosedEventArgs args)
+        {
+            var netProfit = 0.0;
+#if CTRADER && SELF_ACCOUNTING
+            var grossProfit = 0.0;
+            (grossProfit, netProfit) = GetNetProfitFromLabel(args.Position);
+#endif
+#if !CTRADER || PLATFORM_ACCOUNTING
+            netProfit = args.Position.NetProfit;
+#endif
+            if (netProfit >= 0)
+            {
+                AccountWinProfit += netProfit;
+                AccountWinningTrades++;
+            }
+            else
+            {
+                AccountLossProfit += -netProfit;
+                AccountLoosingTrades++;
+            }
+            AccountBalance += netProfit;
         }
 
         public virtual void PreTick()
@@ -521,7 +544,7 @@ namespace RobotLib
                     else
                         mDataRateId = DataRateId.Timeframe;
 
-            // On each new second, update all CtQcBars
+            // On each new second, update all QcBars
             if (Time.ToNativeSec() != PrevTime.ToNativeSec())
                 foreach (var qcBar in mQcBarList)
                     qcBar.OnTick(Time, PrevTime);
@@ -611,11 +634,13 @@ namespace RobotLib
 
         public void UpdateProfit()
         {
-            GrossProfit = NetProfit = 0;
+            var grossProfit = 0.0;
+            var netProfit = 0.0;
             foreach (var pos in mRobot.Positions)
-                (GrossProfit, NetProfit) = GetAccountNetProfitFromLabel(pos);
-
-            AccountEquity = AccountBalance + NetProfit;
+            {
+                (grossProfit, netProfit) = GetNetProfitFromLabel(pos);
+                AccountEquity = AccountBalance + netProfit;
+            }
 
             if (Account.Balance != AccountBalance)
             { }
@@ -1445,19 +1470,6 @@ namespace RobotLib
 
         public TradeResult CloseTrade(Position position)
         {
-            if (NetProfit >= 0)
-            {
-                AccountWinProfit += NetProfit;
-                AccountWinningTrades++;
-            }
-            else
-            {
-                AccountLossProfit += -NetProfit;
-                AccountLoosingTrades++;
-            }
-
-            AccountBalance += NetProfit;
-
             return position.Close();
         }
 
@@ -1474,25 +1486,19 @@ namespace RobotLib
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
         }
 
-        // Get QcBars from Files or Memory Mapped Files
-        public IQcBars GetQcBars(int barPeriodSeconds,
-            string symbolPair,
-            string folderPath,
-            DateTime initDateTime)
-        {
-            return null;
-        }
-
-        public IQcBars GetQcBars(TimeFrame timeframe, string symbolName)
+        public IQcBars GetQcBars(TimeFrame timeframe, string symbolName, string SymbolPair, DateTime time)
         {
             IQcBars bars = null;
 #if CTRADER
-            bars = new CtOrgBars(mRobot, symbolName, Tf2Secs(timeframe));
+            var tfSecs = Tf2Secs(timeframe);
+            bars = SymbolPair.Contains(">>")
+                ? new CtQcMmfBars(tfSecs, symbolName, SymbolPair, Time)
+                : new CtOrgBars(tfSecs, symbolName, mRobot);
 #else
             var barsSeconds = Tf2Secs(timeframe);
             if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))
             {
-                var ntBars = new NinjaTraderQcBars(mRobot, symbolName, barsSeconds);
+                var ntBars = new NtQcBars(mRobot, symbolName, barsSeconds);
                 mRobot.BarsDictionary.Add((barsSeconds, symbolName), ntBars);
                 bars = ntBars;
             }
@@ -1502,15 +1508,15 @@ namespace RobotLib
             return bars;
         }
 
-        static public (double, double) GetAccountNetProfitFromLabel(Position position)
+        static public (double, double) GetNetProfitFromLabel(Position position)
         {
             var trueOpenPrice = double.Parse(position.Label.Split(',')[1], CultureInfo.InvariantCulture);
             var grossProfit = Math.Round(CoFu.DiffLong(TradeType.Buy == position.TradeType,
                 position.CurrentPrice, trueOpenPrice)
                     * position.VolumeInUnits * position.Symbol.TickValue / position.Symbol.TickSize,
                 position.Symbol.Digits);
-            var NetProfit = grossProfit + position.Commissions + position.Swap;
-            return (grossProfit, NetProfit);
+            var netProfit = grossProfit + position.Commissions + position.Swap;
+            return (grossProfit, netProfit);
         }
 
         // returns R² of HistoricalTrade AccountNetProfits over the time
@@ -1545,7 +1551,7 @@ namespace RobotLib
             // < 0.0    =  Worse than a horizontal line — model fits worse than using the mean
             return CoFu.RSquared(y, yPredicted);
         }
-        #endregion
+#endregion
 
         #region cTrader Api
         public void Print(string message, params object[] parameters) => mRobot.Print(message + parameters);

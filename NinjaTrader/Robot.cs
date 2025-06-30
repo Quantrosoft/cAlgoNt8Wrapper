@@ -77,8 +77,8 @@ namespace cAlgo.API
             {"XNGUSD", "NatGas"}
         };
         [XmlIgnore]
-        public Dictionary<(int, string), NinjaTraderQcBars> BarsDictionary
-            = new Dictionary<(int, string), NinjaTraderQcBars>();
+        public Dictionary<(int, string), NtQcBars> BarsDictionary
+            = new Dictionary<(int, string), NtQcBars>();
 
         [Browsable(false)]
         [XmlIgnore]
@@ -96,9 +96,9 @@ namespace cAlgo.API
         #region Start
         protected void InitDataSeries()
         {
-            // Generate NinjaTrader bid and ask data series as pendants of requested cTrader NinjaTraderQcBars
+            // Generate NinjaTrader bid and ask data series as pendants of requested cTrader NtQcBars
             int count = 0;
-            foreach (KeyValuePair<(int, string), NinjaTraderQcBars> kvp in BarsDictionary)
+            foreach (KeyValuePair<(int, string), NtQcBars> kvp in BarsDictionary)
             {
                 if (0 == kvp.Value.BarsPeriod.Value)
                     throw new Exception($"Error: Bars Period Value may not be 0");
@@ -207,10 +207,13 @@ namespace cAlgo.API
 
                     // Set default QcBars and Symbol as pendant of NinjaTrader primary data series
                     var timeframe = AbstractRobot.Secs2Tf(dataRateSeconds, out _);
-                    AbstractRobot.QcBars = AbstractRobot.GetQcBars(timeframe, Instrument.FullName);
+                    AbstractRobot.QcBars = AbstractRobot.GetQcBars(timeframe,
+                        Instrument.FullName,
+                        Instrument.FullName,
+                        Time);
                     Symbol = Symbols.GetSymbol(Instrument.FullName);
 
-                    // New NinjaTraderQcBars and Symbols can and must be added here
+                    // New NtQcBars and Symbols can and must be added here
                     OnConfigure();      // Call user's bot init 1st time OnConfigure
                     InitDataSeries();   // Add NtQcDataSeries as reqested GetQcBars()
                     #endregion
@@ -277,7 +280,6 @@ namespace cAlgo.API
                 Print("Done\n");
             }
         }
-
 
         protected override void OnMarketData(MarketDataEventArgs args)
         {
@@ -669,19 +671,20 @@ namespace cAlgo.API
             History.Add(histPos);
 
             var signal = GetSignal(position.Label, position.Comment);
+            Order order = null;
             if (position.TradeType == TradeType.Buy)
             {
                 if (position.GrossProfit > 0)
-                    ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    order = ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
                 else
-                    ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
+                    order = ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
             else
             {
                 if (position.GrossProfit > 0)
-                    ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    order = ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
                 else
-                    ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
+                    order = ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
 
             return new TradeResult() { IsSuccessful = true };

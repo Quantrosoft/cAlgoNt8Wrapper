@@ -25,28 +25,13 @@ using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class NtQcTimeSeries : IQcTimeSeries
+    public class CtQcMmfTimeSeries : IQcTimeSeries
     {
-        //     Gets the number of elements contained in the series.
-        public int Count => mNinjaTimeSeries.Count;
+        private Ringbuffer<DateTime> mQcData;
 
-        private NtQcBars mBars;
-        // With TickReplay we use our own Ringbuffer
-        private Ringbuffer<DateTime> mTickReplayData;
-        // Without TickReplay we redirect directly to Ninja series
-        private NinjaTrader.NinjaScript.TimeSeries mNinjaTimeSeries;
-
-        public NtQcTimeSeries(NtQcBars bars, NinjaTrader.NinjaScript.TimeSeries timeSeries)
+        public CtQcMmfTimeSeries()
         {
-            mBars = bars;
-            mNinjaTimeSeries = timeSeries;
-            mTickReplayData = new Ringbuffer<DateTime>(NtQcBars.TickReplaySize);
-        }
-
-        public void OnMarketData()
-        {
-            if (mBars.IsNewBar || 0 == mTickReplayData.Count)
-                mTickReplayData.Add(mBars.Robot.MarketDataEventArgs.Time);
+            mQcData = new Ringbuffer<DateTime>(CtQcMmfBars.QcBarsSize);
         }
 
         //     Returns the DateTime value at the specified index.
@@ -63,6 +48,11 @@ namespace cAlgo.API
         //     Gets the last value of this time series.
         public DateTime LastValue => Last(0);
 
+        //     Gets the number of elements contained in the series.
+        public int Count => mQcData.AddCount;
+
+        public void OnMarketData() { }
+
         //     Access a value in the data series certain number of bars ago.
         //
         // Parameters:
@@ -70,17 +60,22 @@ namespace cAlgo.API
         //     Number of bars ago
         public DateTime Last(int index)
         {
-            if (mBars.Robot.IsTickReplay)
-            {
-                var nativeTime = mTickReplayData[index].ToNativeSec();
-                return (nativeTime - (nativeTime % mBars.BarsSeconds)).FromNativeSec()
-                    + TimeSpan.FromSeconds(mBars.BarsSeconds);  // Correct wrong time from NinjaTrader
-            }
-            else
-                return mNinjaTimeSeries[index];
+            return mQcData[index];
         }
-        public void Add(DateTime value) { }
-        public void Bump() { }
-        public void Swap(DateTime value) { }
+
+        public void Add(DateTime value)
+        {
+            mQcData.Add(value);
+        }
+
+        public void Bump()
+        {
+            mQcData.Bump();
+        }
+
+        public void Swap(DateTime value)
+        {
+            mQcData.Swap(value);
+        }
     }
 }

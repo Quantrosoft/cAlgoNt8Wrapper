@@ -20,50 +20,55 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
-using System;
 using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class CtQcTimeSeries : IQcTimeSeries
+    public class CtQcMmfDataSeries : IQcDataSeries
     {
-        private Ringbuffer<DateTime> mQcData;
+        private Ringbuffer<double> mQcData;
 
-        public CtQcTimeSeries()
+        public CtQcMmfDataSeries()
         {
-            mQcData = new Ringbuffer<DateTime>(CtQcBars.QcBarsSize);
+            mQcData = new Ringbuffer<double>(CtQcMmfBars.QcBarsSize);
         }
 
-        //     Returns the DateTime value at the specified index.
-        //
-        // Parameters:
-        //   index:
-        //     The index of the returned value within the series.
+        public double this[int index] => Last(Count - 1 - index);
+
+        //     Gets the value in the dataseries at the specified mPosition.
         //
         // The philosophie of cTrader is to use array indexing
         // So [0] is the very 1st element while [Count-1] is the last element
         // To get the most recent value, use Last(0)
-        public DateTime this[int index] => Last(Count - 1 - index);
+        //public double this[int index] => mNinjaDataSeries[Count - 1 - index];
 
-        //     Gets the last value of this time series.
-        public DateTime LastValue => Last(0);
+        //
+        // Summary:
+        //     Gets the last value of this NtQcDataSeries.
+        //
+        // Remarks:
+        //     The last value may represent one of the values of the last bar of the market
+        //     series, e.g. Open, High, Low and Close. Therefore, take into consideration that
+        //     on each tick, except the Open price, the rest of the values will most probably
+        //     change.
+        public double LastValue => Last(0);
 
-        //     Gets the number of elements contained in the series.
+        //     Gets the total number of elements contained in the NtQcDataSeries.
         public int Count => mQcData.AddCount;
 
         public void OnMarketData() { }
 
-        //     Access a value in the data series certain number of bars ago.
+        //     Access a value in the dataseries certain bars ago
         //
         // Parameters:
         //   index:
         //     Number of bars ago
-        public DateTime Last(int index)
+        public double Last(int index)
         {
-            return mQcData[index];
+            return (long)mQcData[index];
         }
 
-        public void Add(DateTime value)
+        public void Add(double value)
         {
             mQcData.Add(value);
         }
@@ -73,7 +78,7 @@ namespace cAlgo.API
             mQcData.Bump();
         }
 
-        public void Swap(DateTime value)
+        public void Swap(double value)
         {
             mQcData.Swap(value);
         }

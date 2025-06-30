@@ -30,7 +30,7 @@ using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class CtQcBars //: IQcBars
+    public class CtQcFilesBars : IQcBars
     {
         #region Members
         public const int QcBarsSize = 1000;
@@ -47,7 +47,7 @@ namespace cAlgo.API
         public IQcDataSeries AskVolumes { get; internal set; }
         public int TimeFrameSeconds { get; internal set; }
         public TimeFrame TimeFrame { get; internal set; }
-        //public int Count => OpenTimes.Count;
+        public int Count => OpenTimes.Count;
         public string SymbolName => mSymbolPair;
         public bool IsNewBar => CoFu.IsNewBar(TimeFrameSeconds, mFromTime, mPrevTime);
 
@@ -63,7 +63,7 @@ namespace cAlgo.API
         private DateTime mPrevTime;
         #endregion
 
-        public CtQcBars(string folderPath,
+        public CtQcFilesBars(string folderPath,
             string symbolPair,
             int barPeriodSeconds,
             DateTime from)
@@ -73,17 +73,17 @@ namespace cAlgo.API
             TimeFrameSeconds = barPeriodSeconds;
             TimeFrame = AbstractRobot.Secs2Tf(barPeriodSeconds, out _);
 
-            OpenTimes = new CtQcTimeSeries();
-            BidOpenPrices = new CtQcDataSeries();
-            BidHighPrices = new CtQcDataSeries();
-            BidLowPrices = new CtQcDataSeries();
-            BidClosePrices = new CtQcDataSeries();
-            BidVolumes = new CtQcDataSeries();
-            AskOpenPrices = new CtQcDataSeries();
-            AskHighPrices = new CtQcDataSeries();
-            AskLowPrices = new CtQcDataSeries();
-            AskClosePrices = new CtQcDataSeries();
-            AskVolumes = new CtQcDataSeries();
+            OpenTimes = new CtQcFilesTimeSeries();
+            BidOpenPrices = new CtQcFilesDataSeries();
+            BidHighPrices = new CtQcFilesDataSeries();
+            BidLowPrices = new CtQcFilesDataSeries();
+            BidClosePrices = new CtQcFilesDataSeries();
+            BidVolumes = new CtQcFilesDataSeries();
+            AskOpenPrices = new CtQcFilesDataSeries();
+            AskHighPrices = new CtQcFilesDataSeries();
+            AskLowPrices = new CtQcFilesDataSeries();
+            AskClosePrices = new CtQcFilesDataSeries();
+            AskVolumes = new CtQcFilesDataSeries();
 
             OnTick(from, from);
         }

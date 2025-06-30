@@ -94,7 +94,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Gets the chart Bar objects.
-        public NinjaTraderQcBars Bars => (NinjaTraderQcBars)mRobot.AbstractRobot.QcBars;
+        public NtQcBars Bars => (NtQcBars)mRobot.AbstractRobot.QcBars;
 
         //
         // Summary:
@@ -134,7 +134,7 @@ namespace cAlgo.API
         //[EditorBrowsable(EditorBrowsableState.Never)]
         //int Zoom { get; set; }
 
-        //[Obsolete("Use NinjaTraderQcBars instead")]
+        //[Obsolete("Use NtQcBars instead")]
         //[EditorBrowsable(EditorBrowsableState.Never)]
         //MarketSeries MarketSeries { get; }
 #if false

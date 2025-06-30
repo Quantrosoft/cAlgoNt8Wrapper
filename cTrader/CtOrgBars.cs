@@ -52,11 +52,11 @@ namespace TdsCommons
         private Bars mBars;
         #endregion
 
-        public CtOrgBars(Robot robot, string symbol, int barPeriodSeconds)
+        public CtOrgBars(int barPeriodSeconds, string symbol, Robot robot)
         {
-            mBot = robot;
-            mSymbol = symbol;
             TimeFrameSeconds = barPeriodSeconds;
+            mSymbol = symbol;
+            mBot = robot;
             mTimeFrame = AbstractRobot.Secs2Tf(barPeriodSeconds, out _);
             mBars = mBot.MarketData.GetBars(mTimeFrame, symbol);
 
