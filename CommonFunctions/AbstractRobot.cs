@@ -344,7 +344,7 @@ namespace RobotLib
 
         protected Robot mRobot;
         protected ILogger mLogger;
-        protected bool mValidateTickData, mIsInit, mIsSwapLongInit, mIsSwapShortInit, mIsCommissionsInit, mIs1stTick;
+        protected bool mValidateTickData, mIsInit, mIsSwapLongInit, mIsSwapShortInit, mIsCommissionsInit, mIs1stTick = true;
         protected int mLoggingTradeCount;
         protected double mLoggingSaldo, mSwapLong, mSwapShort, mCommissions;
         protected string mTimeZoneId, cCommentTab;
@@ -545,9 +545,8 @@ namespace RobotLib
                         mDataRateId = DataRateId.Timeframe;
 
             // On each new second, update all QcBars
-            if (Time.ToNativeSec() != PrevTime.ToNativeSec())
-                foreach (var qcBar in mQcBarList)
-                    qcBar.OnTick(Time, PrevTime);
+            foreach (var qcBar in mQcBarList)
+                qcBar.OnTick(Time, PrevTime);
 
             UpdateProfit();
         }
@@ -630,6 +629,13 @@ namespace RobotLib
             }
 
             return infoText;
+        }
+
+        public void OnStop()
+        {
+            // On each new second, update all QcBars
+            foreach (var qcBar in mQcBarList)
+                qcBar.OnStop();
         }
 
         public void UpdateProfit()
@@ -1309,11 +1315,6 @@ namespace RobotLib
             return retVal;
         }
 
-        protected bool IsNewBar(int timeframe)
-        {
-            return mPrevTime.ToNativeSec() / (int)timeframe != mCurrentTime.ToNativeSec() / timeframe;
-        }
-
         public void DrawOnOpenedPosition(
            string symName,
            TradeType tt,
@@ -1492,8 +1493,10 @@ namespace RobotLib
 #if CTRADER
             var tfSecs = Tf2Secs(timeframe);
             bars = SymbolPair.Contains(">>")
-                ? new CtQcMmfBars(tfSecs, symbolName, SymbolPair, Time)
+                ? new CtQcPipeBars(tfSecs, symbolName, SymbolPair, Time)
                 : new CtOrgBars(tfSecs, symbolName, mRobot);
+
+            mQcBarList.Add(bars);
 #else
             var barsSeconds = Tf2Secs(timeframe);
             if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))
@@ -1551,7 +1554,7 @@ namespace RobotLib
             // < 0.0    =  Worse than a horizontal line — model fits worse than using the mean
             return CoFu.RSquared(y, yPredicted);
         }
-#endregion
+        #endregion
 
         #region cTrader Api
         public void Print(string message, params object[] parameters) => mRobot.Print(message + parameters);

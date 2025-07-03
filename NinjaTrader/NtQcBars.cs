@@ -205,5 +205,6 @@ namespace cAlgo.API
         public void Add(double value) { }
         public void Bump() { }
         public void Swap(double value) { }
+        public void OnStop() { }
     }
 }

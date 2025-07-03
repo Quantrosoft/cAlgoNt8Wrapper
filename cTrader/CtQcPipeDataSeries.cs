@@ -24,13 +24,13 @@ using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class CtQcMmfDataSeries : IQcDataSeries
+    public class CtQcPipeDataSeries : IQcDataSeries
     {
         private Ringbuffer<double> mQcData;
 
-        public CtQcMmfDataSeries()
+        public CtQcPipeDataSeries()
         {
-            mQcData = new Ringbuffer<double>(CtQcMmfBars.QcBarsSize);
+            mQcData = new Ringbuffer<double>(CtQcPipeBars.QcBarsSize);
         }
 
         public double this[int index] => Last(Count - 1 - index);

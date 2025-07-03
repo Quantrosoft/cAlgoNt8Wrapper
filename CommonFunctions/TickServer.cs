@@ -21,783 +21,179 @@ SOFTWARE.
 */
 
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
-using System.IO.MemoryMappedFiles;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-/* Usage Examples for Multi-Process FIFO Operations:
- *
- * // Producer Process:
- * using var buffer = new TickServer<double>(1000, "SharedBuffer", true);
- * 
- * // Add items to FIFO buffer (never blocks, overwrites oldest)
- * buffer.Enqueue(3.14159);
- * buffer.Enqueue(2.71828);
- * buffer.Enqueue(1.41421);
- * 
- * // Add items with blocking when buffer is full
- * buffer.BlockingEnqueue(42.0);  // Will wait if buffer is full
- * buffer.BlockingEnqueue(99.9, TimeSpan.FromSeconds(30));  // With custom timeout
- * 
- * // Consumer Process:
- * using var buffer = new TickServer<double>("SharedBuffer");
- * 
- * // Read items in FIFO order
- * if (buffer.TryDequeue(out double value))
- *     Console.WriteLine($"Dequeued: {value}"); // Will print 3.14159 (first added)
- * 
- * if (buffer.TryDequeue(out double value2))
- *     Console.WriteLine($"Dequeued: {value2}"); // Will print 2.71828 (second added)
- * 
- * // Peek without removing
- * if (buffer.TryPeek(out double peekValue))
- *     Console.WriteLine($"Next item: {peekValue}");
- * 
- * // Thread-safe producer-consumer example with blocking:
- * try
- * {
- *     using var buffer = new TickServer<int>(100, "MyIntBuffer");
- *     
- *     // Producer thread (blocking mode)
- *     Task.Run(() =>
- *     {
- *         for (int i = 0; i < 1000; i++)
- *         {
- *             buffer.BlockingEnqueue(i); // Will wait for space
- *             Thread.Sleep(10);
- *         }
- *     });
- *     
- *     // Consumer thread
- *     Task.Run(() =>
- *     {
- *         while (true)
- *         {
- *             if (buffer.TryDequeue(out int value))
- *                 Console.WriteLine($"Consumed: {value}");
- *             else
- *                 Thread.Sleep(50); // Brief pause when empty
- *         }
- *     });
- * }
- * catch (Exception ex)
- * {
- *     Console.WriteLine($"Error: {ex.Message}");
- * }
- */
-
 namespace TdsCommons
 {
-    /// <summary>
-    /// Represents a fixed length FIFO ring buffer using memory-mapped files to store a 
-    /// specified maximal count of items. Newest values overwrite oldest in a non-blocking,
-    /// thread-safe manner.
-    /// </summary>
-    /// <typeparam name="T">The generic type of the items stored within the ring buffer. 
-    /// Must be a value type.</typeparam>
-    public class TickServer<T> : IDisposable where T : struct
+    public class TickServerWriter<T> : IDisposable where T : struct
     {
-        #region Private variables
-        /// <summary>
-        /// The write mPosition within the ring buffer (head pointer)
-        /// </summary>
-        protected int mWritePosition;
+        private readonly int mCapacity;
+        private readonly string mPipeName;
+        private readonly SemaphoreSlim mSlotSemaphore;
+        private readonly SemaphoreSlim mItemSemaphore;
+        private readonly ConcurrentQueue<T> mQueue;
+        private readonly Thread mWriterThread;
+        private readonly CancellationTokenSource mCts = new();
+        private bool mWriterDied;
 
-        /// <summary>
-        /// The read mPosition within the ring buffer (tail pointer)
-        /// </summary>
-        protected int mReadPosition;
-
-        /// <summary>
-        /// The current version of the buffer, this is required for a correct 
-        /// exception handling while enumerating over the items of the buffer.
-        /// </summary>
-        private long mVersion;
-
-        /// <summary>
-        /// Memory-mapped file for the buffer data
-        /// </summary>
-        private MemoryMappedFile mMmf;
-
-        /// <summary>
-        /// Accessor for the memory-mapped file
-        /// </summary>
-        private MemoryMappedViewAccessor mAccessor;
-
-        /// <summary>
-        /// Slots of each item in bytes
-        /// </summary>
-        private readonly int mItemSize;
-
-        /// <summary>
-        /// Name of the memory-mapped file
-        /// </summary>
-        private readonly string mMmfName;
-
-        /// <summary>
-        /// Whether the object has been disposed
-        /// </summary>
-        private bool mDisposed;
-
-        /// <summary>
-        /// ReaderWriterLockSlim for thread-safe access
-        /// </summary>
-        private ReaderWriterLockSlim mLock;
-
-        /// <summary>
-        /// Event to signal when space becomes available in the buffer
-        /// </summary>
-        private ManualResetEventSlim mSpaceAvailableEvent;
-
-        /// <summary>
-        /// Timeout for lock operations (milliseconds)
-        /// </summary>
-        public int LockTimeout { get; set; } = 5000;
-
-        /// <summary>
-        /// Default timeout for blocking operations
-        /// </summary>
-        public int BlockingTimeout { get; set; } = Timeout.Infinite;
-
-        /// <summary>
-        /// Total number of items ever written to the buffer
-        /// </summary>
-        private long mTotalWritten;
-
-        /// <summary>
-        /// Total number of items ever read from the buffer
-        /// </summary>
-        private long mTotalRead;
-        private int mDataOffset;
-        #endregion
-
-        #region Public variables
-        /// <summary>
-        /// Gets the maximal count of items within the ring buffer.
-        /// </summary>
-        public int Slots { get; private set; }
-
-        /// <summary>
-        /// Get the current count of items within the ring buffer.
-        /// </summary>
-        public int Count
+        public TickServerWriter(int capacity, string pipeName)
         {
-            get
-            {
-                mLock.EnterReadLock();
-                try
-                {
-                    LoadMetadata();
-                    return CalculateCount();
-                }
-                finally
-                {
-                    mLock.ExitReadLock();
-                }
-            }
+            mPipeName = pipeName.Replace(">>", "");
+            mCapacity = capacity;
+            mSlotSemaphore = new SemaphoreSlim(capacity, capacity);
+            mItemSemaphore = new SemaphoreSlim(0, capacity);
+            mQueue = new ConcurrentQueue<T>();
+            mWriterThread = new Thread(WriterLoop) { IsBackground = true };
+            mWriterThread.Start();
         }
 
-        /// <summary>
-        /// Total number of items ever written to the buffer
-        /// </summary>
-        public long TotalWritten
-        {
-            get
-            {
-                mLock.EnterReadLock();
-                try
-                {
-                    LoadMetadata();
-                    return mTotalWritten;
-                }
-                finally
-                {
-                    mLock.ExitReadLock();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Total number of items ever read from the buffer
-        /// </summary>
-        public long TotalRead
-        {
-            get
-            {
-                mLock.EnterReadLock();
-                try
-                {
-                    LoadMetadata();
-                    return mTotalRead;
-                }
-                finally
-                {
-                    mLock.ExitReadLock();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets whether the buffer is empty
-        /// </summary>
-        public bool IsEmpty => Count == 0;
-
-        /// <summary>
-        /// Gets whether the buffer is full (all slots occupied)
-        /// </summary>
-        public bool IsFull => Count == Slots;
-
-        /// <summary>
-        /// Gets whether data has been lost due to overwriting
-        /// </summary>
-        public bool HasDataLoss => TotalWritten - TotalRead > Slots;
-        #endregion
-
-        #region Constructors
-        /// <summary>
-        /// Creates a new instance of a <see cref="TickServer<T>"/> with a specified 
-        /// cache size using memory-mapped files.
-        /// </summary>
-        /// <param name="slots">The maximal count of items to be stored within the ring buffer.</param>
-        /// <param name="mmfName">Optional name for the memory-mapped file. If null, a unique name will be generated.</param>
-        /// <param name="createNew">If true, creates a new memory-mapped file. If false, tries to open existing one.</param>
-        public TickServer(int slots, string mmfName)
-        {
-            if (slots <= 0)
-                throw new ArgumentException("Slots must be greater than zero", nameof(slots));
-
-            Slots = slots;
-            mMmfName = mmfName;
-
-            mItemSize = Marshal.SizeOf<T>();
-            mDataOffset = sizeof(int) * 3 + sizeof(long) * 3;
-            var totalSize = mDataOffset + mItemSize * slots;
-
-            mLock = new ReaderWriterLockSlim();
-            mSpaceAvailableEvent = new ManualResetEventSlim(true); // Start signaled
-            InitializeMemoryMappedFile(totalSize);
-        }
-
-        /// <summary>
-        /// Creates a ring buffer that connects to an existing memory-mapped file.
-        /// </summary>
-        /// <param name="mmfName">Name of the existing memory-mapped file.</param>
-#pragma warning disable CA1416 // Validate platform compatibility
-        public TickServer(string mmfName)
-        {
-            if (string.IsNullOrEmpty(mmfName))
-                throw new ArgumentException("Memory-mapped file name cannot be null or empty", nameof(mmfName));
-
-            mMmfName = mmfName;
-
-            mItemSize = Marshal.SizeOf<T>();
-            mDataOffset = sizeof(int) * 3 + sizeof(long) * 3;
-            mLock = new ReaderWriterLockSlim();
-            mSpaceAvailableEvent = new ManualResetEventSlim(true); // Start signaled
-
-            try
-            {
-                mMmf = MemoryMappedFile.OpenExisting(mmfName);
-                mAccessor = mMmf.CreateViewAccessor();
-                LoadMetadata();
-            }
-            catch (FileNotFoundException)
-            {
-                throw new ArgumentException($"Memory-mapped file '{mmfName}' does not exist",
-                    nameof(mmfName));
-            }
-        }
-        #endregion
-
-        #region Memory-Mapped File Management
-        private void InitializeMemoryMappedFile(int totalSize)
+        public bool BlockingEnqueue(T item)
         {
             try
             {
-                try
-                {
-                    mMmf = MemoryMappedFile.OpenExisting(mMmfName);
-                    mMmf.Dispose(); // Close existing handle
-                }
-                catch (FileNotFoundException)
-                {
-                }
+                while (!mSlotSemaphore.Wait(1000))
+                    if (mWriterDied)
+                        return false;
 
-                mMmf = MemoryMappedFile.CreateNew(mMmfName, totalSize);
-                mAccessor = mMmf.CreateViewAccessor();
-
-                // Initialize metadata if creating new file
-                mWritePosition = 0;
-                mReadPosition = 0;
-                mVersion = 0;
-                mTotalWritten = 0;
-                mTotalRead = 0;
-                SaveMetadata();
+                mQueue.Enqueue(item);
+                mItemSemaphore.Release();
+                return true;
             }
             catch (Exception)
             {
-                throw new InvalidOperationException("cTrader must be closed when starting TickServer. Close cTrader");
+                return false;
             }
         }
 
-        private void LoadMetadata()
+        private void WriterLoop()
         {
-            Slots = mAccessor.ReadInt32(0);
-            mWritePosition = mAccessor.ReadInt32(sizeof(int));
-            mReadPosition = mAccessor.ReadInt32(sizeof(int) * 2);
-            mVersion = mAccessor.ReadInt64(sizeof(int) * 3);
-            mTotalWritten = mAccessor.ReadInt64(sizeof(int) * 3 + sizeof(long) * 1);
-            mTotalRead = mAccessor.ReadInt64(sizeof(int) * 3 + sizeof(long) * 2);
-        }
-
-        private void SaveMetadata()
-        {
-            mAccessor.Write(0, Slots);
-            mAccessor.Write(sizeof(int), mWritePosition);
-            mAccessor.Write(sizeof(int) * 2, mReadPosition);
-            mAccessor.Write(sizeof(int) * 3, mVersion);
-            mAccessor.Write(sizeof(int) * 3 + sizeof(long) * 1, mTotalWritten);
-            mAccessor.Write(sizeof(int) * 3 + sizeof(long) * 2, mTotalRead);
-        }
-
-        private int CalculateCount()
-        {
-            if (mTotalWritten == mTotalRead)
-                return 0;
-
-            long diff = mTotalWritten - mTotalRead;
-            return (int)Math.Min(diff, Slots);
-        }
-
-        private T ReadItem(int index)
-        {
-            long offset = mDataOffset + index * mItemSize;
-            return mAccessor.ReadStruct<T>(offset);
-        }
-
-        private void WriteItem(int index, T item)
-        {
-            long offset = mDataOffset + index * mItemSize;
-            mAccessor.WriteStruct(offset, item);
-        }
-        #endregion
-
-        #region FIFO Operations
-        /// <summary>
-        /// Adds an item to the end of the FIFO buffer. Never blocks - will overwrite oldest data if buffer is full.
-        /// </summary>
-        /// <param name="item">The item to add to the buffer.</param>
-        /// <returns>True if no data was overwritten, false if oldest data was overwritten.</returns>
-        public bool Enqueue(T item)
-        {
-            if (!mLock.TryEnterWriteLock(LockTimeout))
-                throw new TimeoutException("Failed to acquire write lock within timeout");
-
             try
             {
-                LoadMetadata();
+                using var pipe = new NamedPipeServerStream(mPipeName, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                pipe.WaitForConnection();
 
-                bool dataOverwritten = false;
-
-                // Check if we're about to overwrite unread data
-                if (mTotalWritten - mTotalRead >= Slots)
+                using var writer = new BinaryWriter(pipe);
+                while (!mCts.IsCancellationRequested)
                 {
-                    dataOverwritten = true;
-                    // Move read mPosition forward to maintain buffer size
-                    mReadPosition = (mReadPosition + 1) % Slots;
-                    mTotalRead++;
-                }
+                    mItemSemaphore.Wait(mCts.Token);
 
-                // Write the new item
-                WriteItem(mWritePosition, item);
-                mWritePosition = (mWritePosition + 1) % Slots;
-                mTotalWritten++;
-                mVersion++;
-
-                SaveMetadata();
-                return !dataOverwritten;
-            }
-            finally
-            {
-                mLock.ExitWriteLock();
-            }
-        }
-
-        /// <summary>
-        /// Adds an item to the end of the FIFO buffer, blocking if the buffer is full until space becomes available.
-        /// </summary>
-        /// <param name="item">The item to add to the buffer.</param>
-        /// <param name="timeout">Optional timeout for the blocking operation. Uses BlockingTimeout if not specified.</param>
-        /// <returns>True if the item was successfully added; false if the operation timed out.</returns>
-        public bool BlockingEnqueue(T item, TimeSpan? timeout = null)
-        {
-            var actualTimeout = timeout ?? TimeSpan.FromMilliseconds(BlockingTimeout);
-            var startTime = DateTime.UtcNow;
-
-            while (true)
-            {
-                // Check if we have space
-                if (!mLock.TryEnterReadLock(LockTimeout))
-                    throw new TimeoutException("Failed to acquire read lock within timeout");
-
-                bool hasSpace;
-                try
-                {
-                    LoadMetadata();
-                    hasSpace = (mTotalWritten - mTotalRead) < Slots;
-                }
-                finally
-                {
-                    mLock.ExitReadLock();
-                }
-
-                if (hasSpace)
-                {
-                    // Try to enqueue without overwriting
-                    if (!mLock.TryEnterWriteLock(LockTimeout))
-                        throw new TimeoutException("Failed to acquire write lock within timeout");
-
-                    try
+                    if (mQueue.TryDequeue(out var item))
                     {
-                        LoadMetadata();
-
-                        // Double-check we still have space
-                        if ((mTotalWritten - mTotalRead) >= Slots)
-                        {
-                            // Space was taken by another thread, continue waiting
-                            mSpaceAvailableEvent.Reset();
-                        }
-                        else
-                        {
-                            // We have space, write the item
-                            WriteItem(mWritePosition, item);
-                            mWritePosition = (mWritePosition + 1) % Slots;
-                            mTotalWritten++;
-                            mVersion++;
-
-                            SaveMetadata();
-                            LoadMetadata();
-
-                            // If buffer is now full, reset the event
-                            if ((mTotalWritten - mTotalRead) >= Slots)
-                            {
-                                mSpaceAvailableEvent.Reset();
-                            }
-
-                            return true;
-                        }
-                    }
-                    finally
-                    {
-                        mLock.ExitWriteLock();
+                        var bytes = StructToBytes(item);
+                        writer.Write(bytes.Length);
+                        writer.Write(bytes);
+                        writer.Flush();
+                        mSlotSemaphore.Release();
                     }
                 }
-
-                // Check timeout
-                if (actualTimeout != Timeout.InfiniteTimeSpan)
-                {
-                    var elapsed = DateTime.UtcNow - startTime;
-                    if (elapsed >= actualTimeout)
-                        return false;
-
-                    var remaining = actualTimeout - elapsed;
-                    if (remaining.TotalMilliseconds < 1)
-                        return false;
-
-                    // Wait for space to become available
-                    mSpaceAvailableEvent.Wait(remaining);
-                }
-                else
-                {
-                    // Wait indefinitely
-                    mSpaceAvailableEvent.Wait();
-                }
+            }
+            catch (Exception)
+            {
+                mWriterDied = true;
             }
         }
 
-        /// <summary>
-        /// Attempts to remove and return the oldest item from the FIFO buffer.
-        /// </summary>
-        /// <param name="item">The dequeued item (output parameter).</param>
-        /// <returns>True if an item was successfully dequeued; false if buffer is empty.</returns>
-        public bool TryDequeue(out T item)
-        {
-            item = default(T);
-
-            if (!mLock.TryEnterWriteLock(LockTimeout))
-                throw new TimeoutException("Failed to acquire write lock within timeout");
-
-            try
-            {
-                LoadMetadata();
-
-                if (mTotalRead >= mTotalWritten)
-                    return false; // Buffer is empty
-
-                // Check if buffer was full before this dequeue
-                bool wasFullBefore = (mTotalWritten - mTotalRead) >= Slots;
-
-                // Read the oldest item
-                item = ReadItem(mReadPosition);
-                mReadPosition = (mReadPosition + 1) % Slots;
-                mTotalRead++;
-                mVersion++;
-
-                SaveMetadata();
-
-                // If buffer was full and now has space, signal waiting writers
-                if (wasFullBefore)
-                {
-                    mSpaceAvailableEvent.Set();
-                }
-
-                return true;
-            }
-            finally
-            {
-                mLock.ExitWriteLock();
-            }
-        }
-
-        /// <summary>
-        /// Attempts to return the oldest item from the FIFO buffer without removing it.
-        /// </summary>
-        /// <param name="item">The peeked item (output parameter).</param>
-        /// <returns>True if an item was successfully peeked; false if buffer is empty.</returns>
-        public bool TryPeek(out T item)
-        {
-            item = default(T);
-
-            if (!mLock.TryEnterReadLock(LockTimeout))
-                throw new TimeoutException("Failed to acquire read lock within timeout");
-
-            try
-            {
-                LoadMetadata();
-
-                if (mTotalRead >= mTotalWritten)
-                    return false; // Buffer is empty
-
-                // Read the oldest item without removing it
-                item = ReadItem(mReadPosition);
-                return true;
-            }
-            finally
-            {
-                mLock.ExitReadLock();
-            }
-        }
-
-        /// <summary>
-        /// Clears the entire buffer.
-        /// </summary>
-        public void Clear()
-        {
-            if (!mLock.TryEnterWriteLock(LockTimeout))
-                throw new TimeoutException("Failed to acquire write lock within timeout");
-
-            try
-            {
-                mWritePosition = 0;
-                mReadPosition = 0;
-                mTotalWritten = 0;
-                mTotalRead = 0;
-                mVersion++;
-
-                SaveMetadata();
-
-                // Signal that space is available
-                mSpaceAvailableEvent.Set();
-            }
-            finally
-            {
-                mLock.ExitWriteLock();
-            }
-        }
-
-        /// <summary>
-        /// Gets all items currently in the buffer in FIFO order (oldest first).
-        /// </summary>
-        /// <returns>Array of items in FIFO order.</returns>
-        public T[] ToArray()
-        {
-            if (!mLock.TryEnterReadLock(LockTimeout))
-                throw new TimeoutException("Failed to acquire read lock within timeout");
-
-            try
-            {
-                LoadMetadata();
-                int count = CalculateCount();
-
-                if (count == 0)
-                    return new T[0];
-
-                T[] result = new T[count];
-                int readPos = mReadPosition;
-
-                for (int i = 0; i < count; i++)
-                {
-                    result[i] = ReadItem(readPos);
-                    readPos = (readPos + 1) % Slots;
-                }
-
-                return result;
-            }
-            finally
-            {
-                mLock.ExitReadLock();
-            }
-        }
-
-        /// <summary>
-        /// Gets an enumerator over the current items in the buffer in FIFO order.
-        /// </summary>
-        /// <returns>An enumerator over the current items in FIFO order.</returns>
-        public IEnumerator<T> GetEnumerator()
-        {
-            T[] snapshot = ToArray();
-            long version = mVersion;
-
-            foreach (T item in snapshot)
-            {
-                if (version != mVersion)
-                    throw new InvalidOperationException("Collection changed during enumeration");
-                yield return item;
-            }
-        }
-        #endregion
-
-        #region Legacy Methods
-        /// <summary>
-        /// Legacy indexer - gets item by relative mPosition (0 = oldest, Count-1 = newest)
-        /// </summary>
-        public T this[int relPos]
-        {
-            get
-            {
-                if (!mLock.TryEnterReadLock(LockTimeout))
-                    throw new TimeoutException("Failed to acquire read lock within timeout");
-
-                try
-                {
-                    LoadMetadata();
-                    int count = CalculateCount();
-
-                    if (count == 0 || relPos < 0 || relPos >= count)
-                        throw new IndexOutOfRangeException();
-
-                    int absoluteIndex = (mReadPosition + relPos) % Slots;
-                    return ReadItem(absoluteIndex);
-                }
-                finally
-                {
-                    mLock.ExitReadLock();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets the newest item in the buffer
-        /// </summary>
-        public T Last()
-        {
-            if (!mLock.TryEnterReadLock(LockTimeout))
-                throw new TimeoutException("Failed to acquire read lock within timeout");
-
-            try
-            {
-                LoadMetadata();
-                int count = CalculateCount();
-
-                if (count == 0)
-                    throw new InvalidOperationException("Buffer is empty");
-
-                int newestIndex = (mWritePosition - 1 + Slots) % Slots;
-                return ReadItem(newestIndex);
-            }
-            finally
-            {
-                mLock.ExitReadLock();
-            }
-        }
-
-        /// <summary>
-        /// Gets the oldest item in the buffer
-        /// </summary>
-        public T First()
-        {
-            if (TryPeek(out T item))
-                return item;
-            throw new InvalidOperationException("Buffer is empty");
-        }
-        #endregion
-
-        #region IDisposable Implementation
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!mDisposed)
-            {
-                if (disposing)
-                {
-                    if (mLock.TryEnterWriteLock(1000))
-                    {
-                        try
-                        {
-                            SaveMetadata();
-                        }
-                        finally
-                        {
-                            mLock.ExitWriteLock();
-                        }
-                    }
-
-                    // Dispose objects
-                    mLock?.Dispose();
-                    mAccessor?.Dispose();
-                    mMmf?.Dispose();
-                    mSpaceAvailableEvent?.Dispose();
-                }
-                mDisposed = true;
-            }
-        }
-
-        ~TickServer()
-        {
-            Dispose(false);
-        }
-        #endregion
-    }
-
-    /// <summary>
-    /// Extension methods for MemoryMappedViewAccessor to support reading and writing structs
-    /// </summary>
-    public static class MemoryMappedViewAccessorExtensions
-    {
-        /// <summary>
-        /// Reads a struct of type T from the specified mPosition in the memory-mapped file
-        /// </summary>
-        /// <typeparam name="T">The struct type to read</typeparam>
-        /// <param name="accessor">The MemoryMappedViewAccessor instance</param>
-        /// <param name="position">The mPosition to read from</param>
-        /// <returns>The struct read from memory</returns>
-        public static T ReadStruct<T>(this MemoryMappedViewAccessor accessor, long position) where T : struct
+        private static byte[] StructToBytes(T data)
         {
             int size = Marshal.SizeOf<T>();
-            byte[] buffer = new byte[size];
+            var buffer = new byte[size];
+            var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
+            {
+                Marshal.StructureToPtr(data, handle.AddrOfPinnedObject(), false);
+                return buffer;
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
 
-            // Read bytes from memory-mapped file
-            accessor.ReadArray(position, buffer, 0, size);
+        public void Dispose()
+        {
+            mCts.Cancel();
+            mWriterThread.Join();
+            mCts.Dispose();
+            mSlotSemaphore.Dispose();
+            mItemSemaphore.Dispose();
+        }
+    }
 
-            // Convert bytes to struct
-            GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+    public class TickServerReader<T> : IDisposable where T : struct
+    {
+        private readonly string mPipeName;
+        private readonly NamedPipeClientStream mPipe;
+        private readonly BinaryReader mReader;
+        private byte[] mPeekBuffer;
+
+        public TickServerReader(string pipeName)
+        {
+            mPipeName = pipeName.Replace(">>", "");
+            mPipe = new NamedPipeClientStream(".", mPipeName, PipeDirection.In);
+            try
+            {
+                mPipe.Connect(3000);
+            }
+            catch
+            {
+                throw (new Exception("NinjaTrader is not running or Symbol Pairs are not correct. Start NinjaTrader and cTrader with correct Symbol Pairs"));
+            }
+            mReader = new BinaryReader(mPipe);
+        }
+
+        public bool TryPeek(out T item)
+        {
+            item = default;
+            if (mPeekBuffer != null)
+            {
+                item = BytesToStruct(mPeekBuffer);
+                return true;
+            }
+
+            try
+            {
+                int size = mReader.ReadInt32();
+                mPeekBuffer = mReader.ReadBytes(size);
+                item = BytesToStruct(mPeekBuffer);
+                return true;
+            }
+            catch
+            {
+                mPeekBuffer = null;
+                return false;
+            }
+        }
+
+        public bool TryDequeue(out T item)
+        {
+            item = default;
+            if (mPeekBuffer != null)
+            {
+                item = BytesToStruct(mPeekBuffer);
+                mPeekBuffer = null;
+                return true;
+            }
+
+            try
+            {
+                int size = mReader.ReadInt32();
+                byte[] buffer = mReader.ReadBytes(size);
+                item = BytesToStruct(buffer);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static T BytesToStruct(byte[] data)
+        {
+            var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
             try
             {
                 return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
@@ -808,31 +204,10 @@ namespace TdsCommons
             }
         }
 
-        /// <summary>
-        /// Writes a struct of type T to the specified mPosition in the memory-mapped file
-        /// </summary>
-        /// <typeparam name="T">The struct type to write</typeparam>
-        /// <param name="accessor">The MemoryMappedViewAccessor instance</param>
-        /// <param name="position">The mPosition to write to</param>
-        /// <param name="structure">The struct to write</param>
-        public static void WriteStruct<T>(this MemoryMappedViewAccessor accessor, long position, T structure) where T : struct
+        public void Dispose()
         {
-            int size = Marshal.SizeOf<T>();
-            byte[] buffer = new byte[size];
-
-            // Convert struct to bytes
-            GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-            try
-            {
-                Marshal.StructureToPtr(structure, handle.AddrOfPinnedObject(), false);
-            }
-            finally
-            {
-                handle.Free();
-            }
-
-            // Write bytes to memory-mapped file
-            accessor.WriteArray(position, buffer, 0, size);
+            mReader.Dispose();
+            mPipe.Dispose();
         }
     }
 }

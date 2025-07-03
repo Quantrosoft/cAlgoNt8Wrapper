@@ -126,6 +126,11 @@ namespace cAlgo.API
                 } while (mSecondBar.TimeOpen >= CoFu.TimeInvalid && mSecondBar.TimeOpen.ToNativeSec() < fromNative);
         }
 
+        public void OnStop()
+        {
+            Close();
+        }
+
         private void InitOpenBar()
         {
             // init open stuff
