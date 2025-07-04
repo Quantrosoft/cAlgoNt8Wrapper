@@ -63,7 +63,7 @@ namespace TdsCommons
                 mItemSemaphore.Release();
                 return true;
             }
-            catch (Exception)
+            catch (Exception)   // cTrader terminated
             {
                 return false;
             }

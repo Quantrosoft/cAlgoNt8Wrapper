@@ -88,6 +88,7 @@ namespace cAlgo.API
         public void OnTick(DateTime ctTime, DateTime ctPrevTime)
         {
             mCtTime = ctTime;
+            mCtPrevTime = ctPrevTime;
             var ctNative = ctTime.ToNativeSec();
             bool isNewCtBar = ctPrevTime <= CoFu.TimeInvalid
                 || CoFu.IsNewBar(TimeFrameSeconds, ctTime, ctPrevTime);
