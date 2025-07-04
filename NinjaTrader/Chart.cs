@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+using RobotLib;
 using System;
 
 namespace cAlgo.API
@@ -93,12 +94,13 @@ namespace cAlgo.API
         //
         // Summary:
         //     Gets the chart Bar objects.
-        public Bars Bars => mRobot.Bars;
+        public NtQcBars Bars => (NtQcBars)mRobot.AbstractRobot.QcBars;
 
         //
         // Summary:
         //     Gets the time frame of the chart from 1 minute to 1 month.
-        public TimeFrame TimeFrame => mRobot.Bars.TimeFrame;
+        public cAlgo.API.TimeFrame TimeFrame 
+            => AbstractRobot.Secs2Tf(mRobot.AbstractRobot.QcBars.TimeFrameSeconds, out _);
 
         //
         // Summary:
@@ -132,7 +134,7 @@ namespace cAlgo.API
         //[EditorBrowsable(EditorBrowsableState.Never)]
         //int Zoom { get; set; }
 
-        //[Obsolete("Use Bars instead")]
+        //[Obsolete("Use NtQcBars instead")]
         //[EditorBrowsable(EditorBrowsableState.Never)]
         //MarketSeries MarketSeries { get; }
 #if false

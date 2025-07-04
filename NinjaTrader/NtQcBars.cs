@@ -20,16 +20,46 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+using cAlgo.API;
 using NinjaTrader.Data;
-using NinjaTrader.Gui.NinjaScript;
+using RobotLib;
 using System;
 using TdsCommons;
 using static TdsDefs;
 
 namespace cAlgo.API
 {
-    public class Bars
+    public class NtQcBars : IQcBars
     {
+        #region Members
+        public IQcTimeSeries OpenTimes { get; private set; }
+        public IQcDataSeries BidOpenPrices { get; private set; }
+        public IQcDataSeries BidHighPrices { get; private set; }
+        public IQcDataSeries BidLowPrices { get; private set; }
+        public IQcDataSeries BidClosePrices { get; private set; }
+        public IQcDataSeries BidVolumes { get; private set; }
+        public IQcDataSeries AskOpenPrices { get; private set; }
+        public IQcDataSeries AskHighPrices { get; private set; }
+        public IQcDataSeries AskLowPrices { get; private set; }
+        public IQcDataSeries AskClosePrices { get; private set; }
+        public IQcDataSeries AskVolumes { get; private set; }
+        public int TimeFrameSeconds { get; private set; }
+        public bool IsNewBar { get; private set; }
+        public int Count => OpenTimes.Count;
+        public string SymbolName => mSymbolName;
+
+        //     Gets the average prices data (Open + High + Low + Close) / 4.
+        //public IQcDataSeries AveragePrices => mBars.AveragePrices;
+
+        //     Gets the Median prices data (High + Low) / 2.
+        //public IQcDataSeries MedianPrices;
+
+        //     Gets the Typical prices data (High + Low + Close) / 3.
+        //public IQcDataSeries TypicalPrices;
+
+        //     Gets the Weighted prices data (High + Low + 2 * Close) / 4.
+        //public IQcDataSeries WeightedPrices;
+
         internal const int TickReplaySize = 1000;
         public int LastBarsIndex = -1;
         public int BidBarsIndex = -1;
@@ -40,16 +70,15 @@ namespace cAlgo.API
 
         private DateTime mPrevTime;
         private string mSymbolName;
-        private TimeFrame mTimeFrame;
-        private StrategyRenderBase mStrategy;
+        #endregion
 
-        public Bars(Robot robot, TimeFrame timeFrame, string symbolName)
+        public NtQcBars(Robot robot,
+            string symbolPair,
+            int barPeriodSeconds)
         {
             Robot = robot;
-            mStrategy = robot;
-            mTimeFrame = timeFrame;
-            BarsSeconds = timeFrame.GetPeriodSeconds();
-            mSymbolName = symbolName;
+            mSymbolName = symbolPair;
+            BarsSeconds = barPeriodSeconds;
             BarsPeriod = new BarsPeriod();
 
             if (BarsSeconds >= SEC_PER_MINUTE)
@@ -124,12 +153,19 @@ namespace cAlgo.API
                     }
 
                     var symbol = Robot.Symbols.SymbolDictionary[mSymbolName];
-                    OpenTimes = new TimeSeries(this, Robot.Times[i]);
-                    OpenPrices = new DataSeries(this, symbol, Robot.Opens[i]);
-                    HighPrices = new DataSeries(this, symbol, Robot.Highs[i]);
-                    LowPrices = new DataSeries(this, symbol, Robot.Lows[i]);
-                    ClosePrices = new DataSeries(this, symbol, Robot.Closes[i]);
-                    TickVolumes = new VolumeSeries(this, Robot.Volumes[i]);
+                    OpenTimes = new NtQcTimeSeries(this, Robot.Times[i]);
+
+                    BidOpenPrices = new NtQcDataSeries(this, symbol, Robot.Opens[i]);
+                    BidHighPrices = new NtQcDataSeries(this, symbol, Robot.Highs[i]);
+                    BidLowPrices = new NtQcDataSeries(this, symbol, Robot.Lows[i]);
+                    BidClosePrices = new NtQcDataSeries(this, symbol, Robot.Closes[i]);
+                    BidVolumes = new NtVolumeSeries(this, BidAsk.Bid, Robot.Volumes[i]);
+
+                    AskOpenPrices = new NtQcDataSeries(this, symbol, Robot.Opens[i]);
+                    AskHighPrices = new NtQcDataSeries(this, symbol, Robot.Highs[i]);
+                    AskLowPrices = new NtQcDataSeries(this, symbol, Robot.Lows[i]);
+                    AskClosePrices = new NtQcDataSeries(this, symbol, Robot.Closes[i]);
+                    AskVolumes = new NtVolumeSeries(this, BidAsk.Ask, Robot.Volumes[i]);
 
                     symbol.SymbolBarIndex = i;
                 }
@@ -142,88 +178,33 @@ namespace cAlgo.API
                 || mPrevTime <= CoFu.TimeInvalid;
 
             OpenTimes.OnMarketData();
-            OpenPrices.OnMarketData();
-            HighPrices.OnMarketData();
-            LowPrices.OnMarketData();
-            ClosePrices.OnMarketData();
-            TickVolumes.OnMarketData();
+
+            BidOpenPrices.OnMarketData();
+            BidHighPrices.OnMarketData();
+            BidLowPrices.OnMarketData();
+            BidClosePrices.OnMarketData();
+            BidVolumes.OnMarketData();
+
+            AskOpenPrices.OnMarketData();
+            AskHighPrices.OnMarketData();
+            AskLowPrices.OnMarketData();
+            AskClosePrices.OnMarketData();
+            AskVolumes.OnMarketData();
 
             mPrevTime = Robot.MarketDataEventArgs.Time;
         }
 
-        //
-        // Summary:
-        //     Gets the number of bars.
-        public int Count => OpenTimes.Count;
-
-        //
-        // Summary:
-        //     Get the timeframe.
-        public TimeFrame TimeFrame => mTimeFrame;
-
-        //
-        // Summary:
-        //     Gets the symbol name.
-        public string SymbolName => mSymbolName;
-
-        public bool IsNewBar { get; private set; }
-
-        //
-        // Summary:
-        //     Gets the Open price bars data.
-        public DataSeries OpenPrices;
-
-        //
-        // Summary:
-        //     Gets the High price bars data.
-        public DataSeries HighPrices;
-
-        //
-        // Summary:
-        //     Gets the Low price bars data.
-        public DataSeries LowPrices;
-
-        //
-        // Summary:
-        //     Gets the Close price bars data.
-        public DataSeries ClosePrices;
-
-        //
-        // Summary:
-        //     Gets the Tick volumes data.
-        public VolumeSeries TickVolumes;
-
-        //
-        // Summary:
-        //     Gets the open bar time data.
-        public TimeSeries OpenTimes;
-
-        //
-        // Summary:
-        //     Gets the average prices data (Open + High + Low + Close) / 4.
-        //public DataSeries AveragePrices => mBars.AveragePrices;
-
-        //
-        // Summary:
-        //     Gets the Median prices data (High + Low) / 2.
-        //public DataSeries MedianPrices;
-
-        //
-        // Summary: 
-        //     Gets the Typical prices data (High + Low + Close) / 3.
-        //public DataSeries TypicalPrices;
-
-        //
-        // Summary:
-        //     Gets the Weighted prices data (High + Low + 2 * Close) / 4.
-        //public DataSeries WeightedPrices;
-
-
-        public int GetBar(DateTime time) => Robot.Bars.GetBar(time);
+        //public int GetBar(DateTime time) => Robot.AbstractRobot.QcBars.GetBar(time);
 
         public override int GetHashCode()
         {
             return BarsSeconds / SEC_PER_MINUTE;
         }
+
+        public void OnTick(DateTime fromTime, DateTime prevTime) { }
+        public void Add(double value) { }
+        public void Bump() { }
+        public void Swap(double value) { }
+        public void OnStop() { }
     }
 }

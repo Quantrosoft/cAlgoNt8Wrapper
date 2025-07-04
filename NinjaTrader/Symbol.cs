@@ -22,8 +22,6 @@ SOFTWARE.
 
 using NinjaTrader.Cbi;
 using NinjaTrader.Gui.NinjaScript;
-using NinjaTrader.NinjaScript;
-using NinjaTrader.NinjaScript.Strategies;
 using System;
 
 namespace cAlgo.API

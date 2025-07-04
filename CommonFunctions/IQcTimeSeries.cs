@@ -21,19 +21,19 @@ SOFTWARE.
 */
 
 using cAlgo.API;
+using System;
 
-namespace RobotLib.Cs
+namespace TdsCommons
 {
-    public class CSRobotFactory : IRobotFactory
+    public interface IQcTimeSeries
     {
-        public ILogger CreateLogger(Robot robot)
-        {
-            return new CsLogger(robot);
-        }
-
-        public AbstractRobot CreateRobot()
-        {
-            return new CsRobot();
-        }
+        int Count { get; }
+        public DateTime this[int index] { get; }
+        DateTime LastValue { get; }
+        DateTime Last(int index);
+        public void Add(DateTime value);
+        public void Bump();
+        public void Swap(DateTime value);
+        void OnMarketData();
     }
 }

@@ -24,9 +24,9 @@ using cAlgo.API;
 
 namespace RobotLib
 {
-   public interface IRobotFactory 
-   {
-      IRobot CreateRobot();
-      ILogger CreateLogger(Robot robot);
-   }
+    public interface IRobotFactory
+    {
+        AbstractRobot CreateRobot();
+        ILogger CreateLogger(Robot robot);
+    }
 }

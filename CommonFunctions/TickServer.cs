@@ -1,180 +1,110 @@
-﻿#region Usings
-#if !CTRADER
-using NinjaTrader.Data;
-using NinjaTrader.Cbi;
-#endif
-using cAlgo.API;
+/* MIT License
+Copyright (c) 2025 Quantrosoft Pty. Ltd.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. 
+*/
+
 using System;
+using System.Collections.Concurrent;
+using System.IO;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
-using TdsCommons;
-using System.Threading.Tasks;
-#endregion
+using System.Threading;
 
-namespace cAlgo.Robots
+namespace TdsCommons
 {
-    public class TickServer
+    public class TickServerWriter<T> : IDisposable where T : struct
     {
-#if CTRADER
-        public Ringbuffer<QcBar> QcBars = new Ringbuffer<QcBar>(2);
-        private NamedPipeClientStream mPipe;
-        private long mPrevNative;
-#else
-        private NamedPipeServerStream mPipe;
-        private TickserverMarketDataArgs mPrevBarArgs;
-        private ulong mMessageId;
-#endif
+        private readonly int mCapacity;
         private readonly string mPipeName;
-        private readonly int mStructSize;
-        private readonly Robot mBot;
+        private readonly SemaphoreSlim mSlotSemaphore;
+        private readonly SemaphoreSlim mItemSemaphore;
+        private readonly ConcurrentQueue<T> mQueue;
+        private readonly Thread mWriterThread;
+        private readonly CancellationTokenSource mCts = new();
+        private bool mWriterDied;
 
-        public TickServer(Robot robot, string pipeName)
+        public TickServerWriter(int capacity, string pipeName)
         {
-            mBot = robot;
-            mPipeName = pipeName;
-            mStructSize = Marshal.SizeOf(typeof(TickserverMarketDataArgs));
-#if CTRADER
-            mPipe = new NamedPipeClientStream(".", mPipeName, PipeDirection.In);
-            mPipe.Connect();
-#else
-            mPipe = new NamedPipeServerStream(mPipeName,
-                PipeDirection.Out,
-                1,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous);
-#endif
+            mPipeName = pipeName.Replace(">>", "");
+            mCapacity = capacity;
+            mSlotSemaphore = new SemaphoreSlim(capacity, capacity);
+            mItemSemaphore = new SemaphoreSlim(0, capacity);
+            mQueue = new ConcurrentQueue<T>();
+            mWriterThread = new Thread(WriterLoop) { IsBackground = true };
+            mWriterThread.Start();
         }
 
-        public void Dispose()
+        public bool BlockingEnqueue(T item)
         {
-            mPipe?.Dispose();
-        }
-
-        public bool IsConnected => mPipe.IsConnected;
-
-#if CTRADER
-
-        public bool Read(out TickserverMarketDataArgs data)
-        {
-            byte[] buffer = new byte[mStructSize];
-            int totalRead = 0;
-
-            while (totalRead < mStructSize)
-            {
-                int bytesRead = mPipe.Read(buffer, totalRead, mStructSize - totalRead);
-                if (bytesRead == 0)
-                {
-                    data = default;
-                    return false; // Pipe closed or no data
-                }
-                totalRead += bytesRead;
-            }
-
-            data = ByteArrayToStructure<TickserverMarketDataArgs>(buffer);
-            return true;
-        }
-
-        private static T2 ByteArrayToStructure<T2>(byte[] bytes) where T2 : struct
-        {
-            GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
             try
             {
-                return Marshal.PtrToStructure<T2>(handle.AddrOfPinnedObject());
-            }
-            finally
-            {
-                handle.Free();
-            }
-        }
+                while (!mSlotSemaphore.Wait(1000))
+                    if (mWriterDied)
+                        return false;
 
-        public string TickServerOnTick(DateTime from, DateTime to, int barSeconds, bool xy, bool doPrint)
-        {
-            TickserverMarketDataArgs args = default;
-            var fromNative = from.ToNativeSec();
-            var toNative = to.ToNativeSec();
-            long argsNative = 0;
-
-            // Step 1: Skip stale ticks before 'from'
-            while (true)
-            {
-                if (!Read(out args))
-                    return "Server closed the connection";
-
-                if (fromNative < argsNative)
-                    return "NinjaTrader start time must be BEFORE cTrader start time";
-
-                if (doPrint)
-                    mBot.Print(args.MessageId);
-
-                argsNative = args.Time.ToNativeSec();
-
-                if (argsNative >= fromNative)
-                    break;
-            }
-
-            var qcBar = new QcBar();
-            if (null == qcBar || CoFu.IsNewBar(barSeconds, argsNative, mPrevNative))
-            {
-                QcBars.Add(qcBar);
-
-                qcBar = new QcBar();
-                qcBar.TimeOpen = (fromNative - (fromNative % barSeconds)).FromNativeSec();
-                qcBar.BidOpen = qcBar.BidHigh = qcBar.BidLow = args.Bid;
-                qcBar.AskOpen = qcBar.AskHigh = qcBar.AskLow = args.Ask;
-                // qcBar.AskVolume and qcBar.BidVolume are alway 0 on a new qcBar();
-            }
-
-            // Step 3: Define tick accumulation logic as local function
-            void AccumulateTick(TickserverMarketDataArgs tick)
-            {
-                qcBar.BidHigh = Math.Max(qcBar.BidHigh, tick.Bid);
-                qcBar.BidLow = Math.Min(qcBar.BidLow, tick.Bid);
-                qcBar.AskHigh = Math.Max(qcBar.AskHigh, tick.Ask);
-                qcBar.AskLow = Math.Min(qcBar.AskLow, tick.Ask);
-                qcBar.BidClose = tick.Bid;
-                qcBar.AskClose = tick.Ask;
-
-                if (tick.Ask != tick.Bid)
-                {
-                    if (tick.Price >= tick.Ask)
-                        qcBar.AskVolume += tick.Volume;
-                    else if (tick.Price <= tick.Bid)
-                        qcBar.BidVolume += tick.Volume;
-                }
-            }
-
-            // Step 4: Accumulate initial tick
-            AccumulateTick(args);
-
-            mPrevNative = argsNative;
-
-            return "";
-        }
-#else
-        public bool Write(TickserverMarketDataArgs data)
-        {
-            data.MessageId = ++mMessageId;
-            mBot.Print(data.MessageId);
-            byte[] buffer = StructureToByteArray(data);
-            try
-            {
-                mPipe.Write(buffer, 0, buffer.Length);
-                mPipe.Flush();
+                mQueue.Enqueue(item);
+                mItemSemaphore.Release();
                 return true;
             }
-            catch
+            catch (Exception)
             {
-                return false; // Pipe might be broken or closed
+                return false;
             }
         }
 
-        private static byte[] StructureToByteArray(TickserverMarketDataArgs obj)
+        private void WriterLoop()
         {
-            byte[] buffer = new byte[Marshal.SizeOf<TickserverMarketDataArgs>()];
-            GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
             try
             {
-                Marshal.StructureToPtr(obj, handle.AddrOfPinnedObject(), false);
+                using var pipe = new NamedPipeServerStream(mPipeName, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                pipe.WaitForConnection();
+
+                using var writer = new BinaryWriter(pipe);
+                while (!mCts.IsCancellationRequested)
+                {
+                    mItemSemaphore.Wait(mCts.Token);
+
+                    if (mQueue.TryDequeue(out var item))
+                    {
+                        var bytes = StructToBytes(item);
+                        writer.Write(bytes.Length);
+                        writer.Write(bytes);
+                        writer.Flush();
+                        mSlotSemaphore.Release();
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                mWriterDied = true;
+            }
+        }
+
+        private static byte[] StructToBytes(T data)
+        {
+            int size = Marshal.SizeOf<T>();
+            var buffer = new byte[size];
+            var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
+            {
+                Marshal.StructureToPtr(data, handle.AddrOfPinnedObject(), false);
                 return buffer;
             }
             finally
@@ -183,39 +113,102 @@ namespace cAlgo.Robots
             }
         }
 
-        public void WaitForConnection()
+        public void Dispose()
         {
-            mPipe.WaitForConnection();
+            mCts.Cancel();
+            mWriterThread.Join();
+            mCts.Dispose();
+            mSlotSemaphore.Dispose();
+            mItemSemaphore.Dispose();
         }
-
-        public Task WaitForConnectionAsync()
-        {
-            return mPipe.WaitForConnectionAsync();
-        }
-
-#endif
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct TickserverMarketDataArgs
+    public class TickServerReader<T> : IDisposable where T : struct
     {
-        public double Ask;
-        public double Bid;
-        public double Last;
-#if !CTRADER
-        public Instrument Instrument;
-#endif
-        public MarketDataType MarketDataType;
-        public double Price;
-        public long TimeTicks;
-        public long Volume;
-        public ulong MessageId;
+        private readonly string mPipeName;
+        private readonly NamedPipeClientStream mPipe;
+        private readonly BinaryReader mReader;
+        private byte[] mPeekBuffer;
 
-        public DateTime Time
+        public TickServerReader(string pipeName)
         {
-            get => new DateTime(TimeTicks);
-            set => TimeTicks = value.Ticks;
+            mPipeName = pipeName.Replace(">>", "");
+            mPipe = new NamedPipeClientStream(".", mPipeName, PipeDirection.In);
+            try
+            {
+                mPipe.Connect(3000);
+            }
+            catch
+            {
+                throw (new Exception("NinjaTrader is not running or Symbol Pairs are not correct. Start NinjaTrader and cTrader with correct Symbol Pairs"));
+            }
+            mReader = new BinaryReader(mPipe);
+        }
+
+        public bool TryPeek(out T item)
+        {
+            item = default;
+            if (mPeekBuffer != null)
+            {
+                item = BytesToStruct(mPeekBuffer);
+                return true;
+            }
+
+            try
+            {
+                int size = mReader.ReadInt32();
+                mPeekBuffer = mReader.ReadBytes(size);
+                item = BytesToStruct(mPeekBuffer);
+                return true;
+            }
+            catch
+            {
+                mPeekBuffer = null;
+                return false;
+            }
+        }
+
+        public bool TryDequeue(out T item)
+        {
+            item = default;
+            if (mPeekBuffer != null)
+            {
+                item = BytesToStruct(mPeekBuffer);
+                mPeekBuffer = null;
+                return true;
+            }
+
+            try
+            {
+                int size = mReader.ReadInt32();
+                byte[] buffer = mReader.ReadBytes(size);
+                item = BytesToStruct(buffer);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static T BytesToStruct(byte[] data)
+        {
+            var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            try
+            {
+                return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+
+        public void Dispose()
+        {
+            mReader.Dispose();
+            mPipe.Dispose();
         }
     }
 }
-// End of file
+// end of file

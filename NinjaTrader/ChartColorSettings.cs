@@ -24,9 +24,9 @@ SOFTWARE.
 // Type: cAlgo.ChartColorSettings
 namespace cAlgo.API
 {
-    /// <summary>Represents the charts cAlgo.API.Color Settings.</summary>
+    /// <summary>Represents the charts NinjaTrader.API.Color Settings.</summary>
     /// <remarks>
-    /// Use the cAlgo.API.Color classes to set the chart cAlgo.API.Color Settings.
+    /// Use the NinjaTrader.API.Color classes to set the chart NinjaTrader.API.Color Settings.
     /// </remarks>
     public class ChartColorSettings
     {

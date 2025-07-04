@@ -20,20 +20,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
-using cAlgo.API;
-
-namespace RobotLib.Cs
+namespace TdsCommons
 {
-    public class CSRobotFactory : IRobotFactory
+    public class SerialArrays
     {
-        public ILogger CreateLogger(Robot robot)
-        {
-            return new CsLogger(robot);
-        }
-
-        public AbstractRobot CreateRobot()
-        {
-            return new CsRobot();
-        }
+        public double[] Tick2Ask, Tick2Bid;
+        public long[] Tick2NativeMs;
     }
 }

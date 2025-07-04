@@ -27,7 +27,6 @@ using System;
 
 /*  Knowledge base 
     The chart is always drawn based on BarsArray[0] — that's the primary data series.
-
  */
 
 namespace cAlgo.API
@@ -684,9 +683,9 @@ namespace cAlgo.API
                 mRobot, // owner
                 name,   // tag
                 true,   // isAutoScale
-                time1 + TimeSpan.FromSeconds(mRobot.Bars.BarsSeconds),  // startTime
+                time1 + TimeSpan.FromSeconds(mRobot.AbstractRobot.QcBars.TimeFrameSeconds),  // startTime
                 y1,     // startY
-                time2 + TimeSpan.FromSeconds(mRobot.Bars.BarsSeconds),  // endTime
+                time2 + TimeSpan.FromSeconds(mRobot.AbstractRobot.QcBars.TimeFrameSeconds),  // endTime
                 y2,     // endY
                 NinjaBrushConverter.FromCtraderColor(color),    // brush
                 MapToDashStyleHelper(lineStyle),    // dashStyle
@@ -987,7 +986,7 @@ namespace cAlgo.API
             {
                 // NinjaTrader uses the close time of a bar to draw it on the chart
                 // The chart is always drawn based on BarsArray[0] — that's the primary data series
-                Draw.Text(mRobot, name, true, text, time + TimeSpan.FromSeconds(mRobot.Bars.BarsSeconds), y,
+                Draw.Text(mRobot, name, true, text, time + TimeSpan.FromSeconds(mRobot.AbstractRobot.QcBars.TimeFrameSeconds), y,
                     0, NinjaBrushConverter.FromCtraderColor(color), mTextFont,
                     System.Windows.TextAlignment.Center, System.Windows.Media.Brushes.Transparent, System.Windows.Media.Brushes.Transparent,
                     0, DashStyleHelper.Solid, 1, true, "");

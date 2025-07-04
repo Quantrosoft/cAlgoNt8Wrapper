@@ -20,12 +20,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
-#define REPURCHASE_NOT_ORDERSx
-
 using cAlgo.API;
 using cAlgo.API.Internals;
+#if !CTRADER
+using NinjaTrader.NinjaScript;
+using System.Xml.Serialization;
+#endif
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using TdsCommons;
@@ -33,6 +36,7 @@ using static TdsDefs;
 
 namespace RobotLib
 {
+    #region Enums
     public enum ProfitMode
     {
         Lots,
@@ -76,7 +80,9 @@ namespace RobotLib
         Absolute
     }
 #endif
+    #endregion
 
+    #region Delegates
     public delegate Position DelegateOpenTrade(
        Symbol symbol,
        TradeType tradeType,
@@ -88,6 +94,7 @@ namespace RobotLib
     public delegate TradeResult DelegateCloseTrade(Position pos);
     public delegate void DelegateOnPositionOpened(PositionOpenedEventArgs args);
     public delegate void DelegateOnPositionClosed(PositionClosedEventArgs args);
+    #endregion
 
     public class LogParams
     {
@@ -113,12 +120,14 @@ namespace RobotLib
         //double mLastBottomY;
         //double mLastTopY;
         Robot mBot;
+        private AbstractRobot mAbstractRobot;
         private int mPrevOverlayBarCount;
         private double mPrevOverlayData;
 
-        public Drawings(Robot bot)
+        public Drawings(Robot bot, AbstractRobot abstractRobot)
         {
             mBot = bot;
+            mAbstractRobot = abstractRobot;
         }
 
         public void DrawOverlay(
@@ -128,7 +137,7 @@ namespace RobotLib
            Color color,
            int thickness)
         {
-            var isNewChartBar = mPrevOverlayBarCount != mBot.Bars.Count;
+            var isNewChartBar = mPrevOverlayBarCount != mAbstractRobot.QcBars.Count;
             var isInit = 0 == mPrevOverlayBarCount;
             for (int i = 0;
                i < data.Count - 1
@@ -142,7 +151,7 @@ namespace RobotLib
                 else
                     mBot.Chart.DrawTrendLine("Overlay" + name +
                         (isInit ? i : (mBot.Chart.Bars.Count % mBot.Chart.MaxVisibleBars + (isNewChartBar ? -1 : 0))).ToString(),
-                       isInit ? data.Last(i + 1).Item1 : mBot.Bars.OpenTimes.Last((isNewChartBar ? 1 : 0)),
+                       isInit ? data.Last(i + 1).Item1 : mAbstractRobot.QcBars.OpenTimes.Last((isNewChartBar ? 1 : 0)),
                        isInit ? data.Last(i + 1).Item2 : mPrevOverlayData,
                        isInit ? data.Last(i).Item1 : botCurrentTime,
                        data.Last(i).Item2,
@@ -155,18 +164,18 @@ namespace RobotLib
             if (isInit || isNewChartBar)
                 mPrevOverlayData = data.Last(0).Item2;
 
-            mPrevOverlayBarCount = mBot.Bars.Count;
+            mPrevOverlayBarCount = mAbstractRobot.QcBars.Count;
         }
 
-        public void DrawOverlay(Bars indiBars,
-           DataSeries data,
+        public void DrawOverlay(IQcBars indiBars,
+           IQcDataSeries data,
            string name,
            DateTime botCurrentTime,
            Color color,
            int thickness,
            int offset = 0)
         {
-            var isNewChartBar = mPrevOverlayBarCount != mBot.Bars.Count;
+            var isNewChartBar = mPrevOverlayBarCount != mAbstractRobot.QcBars.Count;
             var isInit = 0 == mPrevOverlayBarCount;
 
             for (int i = offset;
@@ -183,13 +192,13 @@ namespace RobotLib
                         + (mBot.Chart.Bars.Count % mBot.Chart.MaxVisibleBars - i + (isNewChartBar ? -1 : 0)).ToString(),
                        isInit
                           ? indiBars.OpenTimes.Last(i + 1)
-                          : mBot.Bars.OpenTimes.Last(isNewChartBar ? 1 + offset : 0),
+                          : mAbstractRobot.QcBars.OpenTimes.Last(isNewChartBar ? 1 + offset : 0),
                        isInit
                           ? data.Last(i + 1)
                           : mPrevOverlayData,
                        isInit
                           ? indiBars.OpenTimes.Last(i)
-                          : isNewChartBar ? mBot.Bars.OpenTimes.Last(offset) : mBot.Time,
+                          : isNewChartBar ? mAbstractRobot.QcBars.OpenTimes.Last(offset) : mBot.Time,
                        last,
                        color, thickness).IsInteractive = true;
                 }
@@ -200,12 +209,12 @@ namespace RobotLib
             if (isInit || isNewChartBar)
                 mPrevOverlayData = data.Last(isNewChartBar ? 1 : 0);
 
-            mPrevOverlayBarCount = mBot.Bars.Count;
+            mPrevOverlayBarCount = mAbstractRobot.QcBars.Count;
         }
 
         public void DrawNoOverlay(
-           Bars dataBars,
-           DataSeries data,
+           IQcBars dataBars,
+           IQcDataSeries data,
            string name,
            DateTime currentTime,
            Color color,
@@ -230,7 +239,7 @@ namespace RobotLib
                                 CoFu.Min(ref minVal, data.Last(i));
                             }
 
-                            //if (mBot.Chart.TopY != mLastTopY || mBot.Chart.BottomY != mLastBottomY
+                            //if (AbstractRobot.Chart.TopY != mLastTopY || AbstractRobot.Chart.BottomY != mLastBottomY
                             {
                                 var drawFact = (maxVal - minVal) / (mBot.Chart.TopY - mBot.Chart.BottomY);
 
@@ -277,8 +286,8 @@ namespace RobotLib
                                 }
                             }
                         }
-            //mLastBottomY = mBot.Chart.BottomY;
-            //mLastTopY = mBot.Chart.TopY;
+            //mLastBottomY = AbstractRobot.Chart.BottomY;
+            //mLastTopY = AbstractRobot.Chart.TopY;
         }
 
         public void DrawHistogram(List<double> data, string name, Color color)
@@ -310,18 +319,34 @@ namespace RobotLib
         }
     }
 
-    public abstract class AbstractRobot : IRobot
+    public abstract class AbstractRobot
     {
         #region Members
-        public TradingPlatform TradingPlatform { get; }
-        public bool IsNinjaTrader { get; }
-        public bool IsCtrader { get; }
+        public IQcBars QcBars;
+        public TradingPlatform TradingPlatform;
+        public bool IsNinjaTrader;
+        public bool IsCtrader;
+        // Own accounting since cTrader does have a bug in limit accounting
+        public double AccountWinProfit, AccountLossProfit;
+        public double AccountEquity, AccountBalance;
+        public int AccountWinningTrades, AccountLoosingTrades, TotalTrades;
+        public int SameTimeOpen, SameTimeOpenCount, MaxEquityDrawdownCount;
+        public int MaxBalanceDrawdownCount, OpenDurationCount;
 
-        protected Robot mRobot; // MQL needs fully qualified path for Robot
+        public double StartBalance, MaxEquityDrawdownValue, Calmar, TradesPerMonth, mChanceRiskRatio;
+        public double ProfitConstanceness, ProfitFactor, MaxEquity, MaxMargin, MaxBalanceDrawdownValue;
+        public double MaxBalance;
+        public DateTime SameTimeOpenDateTime, MaxBalanceDrawdownTime, MaxEquityDrawdownTime;
+        public TimeSpan MinOpenDuration = new TimeSpan(long.MaxValue);
+        public TimeSpan OpenDurationSum = new TimeSpan(0);
+        public TimeSpan AvgOpenDuration = new TimeSpan(0);
+        public TimeSpan MaxOpenDuration = new TimeSpan(0);
+
+        protected Robot mRobot;
         protected ILogger mLogger;
-        protected bool mValidateTickData, mIsInit, mIsSwapLongInit, mIsSwapShortInit, mIsCommissionsInit, mIs1stTick;
+        protected bool mValidateTickData, mIsInit, mIsSwapLongInit, mIsSwapShortInit, mIsCommissionsInit, mIs1stTick = true;
         protected int mLoggingTradeCount;
-        protected double mInitialAccountBalance, mLoggingSaldo, mSwapLong, mSwapShort, mCommissions;
+        protected double mLoggingSaldo, mSwapLong, mSwapShort, mCommissions;
         protected string mTimeZoneId, cCommentTab;
         protected DateTime mPrevTime, mCurrentTime, mInitialTime;
         protected Color[] cTradeColor;
@@ -329,81 +354,8 @@ namespace RobotLib
         protected DateTime cInvalidTime;
 
         private string[] mHeaderSplit;
-        private Dictionary<string, string> mSymbolDictionary = new Dictionary<string, string>
-        {
-            { "SURVEY", "Unknown" },
-            { "MONKEY", "Unknown" },
-            { "DASH", "Unknown" },        //{ "DASH", "DSHUSD" },
-            { "CANOPY", "Unknown" },
-            { "APHRIA", "Unknown" },
-            { "GAZPROM", "Unknown" },
-            { "NOVATEK", "Unknown" },
-            { "SPOTIFY", "Unknown" },
-            { "USDRUB", "Unknown" },
-            { "EURRUB", "Unknown" },
-            { "SLACK", "Unknown" },
-            { "NORILSK", "Unknown" },
-            { "NOLISK", "Unknown" },
-            { "NICKEL", "Unknown" },
-            { "RUSSIA50", "Unknown" },
-            { "FACEBOOK", "Unknown" },
-            { "RALPH", "Unknown" },
-            { "LAUREN", "Unknown" },
-            { "USDUPY", "USDJPY" },
-
-            { "DOW", "US30" },            //{ "DOW", "YM" },
-            { "APPLE", "AAPL.US" },       //{ "APPLE", "Apple" },
-            { "BRENT", "SpotBrent" },     //{ "BRENT", "BRN" },
-            //{ "BRENT", "Brent-F" },     //{ "BRENT", "BRN" },
-            //{ "BRENT", "Cude-F" },     //{ "BRENT", "BRN" },
-            { "BMW", "BMWd.DE" },         //{ "BMW", "BMW" },
-            { "DEUTSCHE", "DBKd.DE" },    // { "DEUTSCHE", "Deutsche_Bank" }
-            { "BANK", "DBKd.DE" },        // { "DEUTSCHE", "Deutsche_Bank" }
-            { "VOLKSWAGEN", "VOWd.DE" },  // { "VOLKSWAGEN", "Volkswagen" }
-            { "BAYER", "BAYNd.DE" },      // { "BAYER", "Bayer" }
-            { "SAP", "SAPd.DE" },
-            { "AMAZON", "AMZN.US" },      // { "AMAZON", "Amazom" }
-            { "DAX", "GER40-F" },         // { "DAX", "FDAX" }
-            { "NQ", "NAS100" },
-            { "SP500", "US500" },
-            { "S&P", "US500" },
-            { "NASDAQ", "NAS100" },
-            { "CAC", "FRA40" },
-            { "SNAP", "SNAP.US" },
-            { "AURORA", "ACB.US" },
-            { "TILRAY", "TLRY.US" },
-            { "CRONOS", "CRON.US" },
-            { "TESLA", "TSLA.US" },
-            { "AIRBUS", "AIR.FR" },
-            { "KAFFEE", "Coffee" },
-            { "KAKAO", "Cocoa" },
-            { "WTI", "SpotCrude" },
-            { "SUGAR", "Sugar" },
-
-            { "NETFLIX", "NFLX.US" },
-            { "DAIMLER", "MBGd.DE" },
-            { "MASTERCARD", "MA.US" },
-            { "BOEING", "BA.US" },
-            { "BEOING", "BA.US" },
-            { "AMERICAN", "AXP.US" },
-            { "EXPRESS", "AXP.US" },
-            { "MODERNA", "MRNA.US" },
-            { "TRIPADVISOR", "TRIP.US" },
-            { "STARBUCKS", "SBUX.US" },
-            { "PINTEREST", "PINS.US" },
-            { "GOOGLE", "GOOGL.US" },
-            { "MCDONALDS", "MCD.US" },
-
-            { "GOLD", "XAUUSD" },
-            { "BITCOIN", "BTCUSD" },
-            { "ETHEREUM", "ETHUSD" },
-            { "RIPPLE", "XRPUSD" },
-            { "LITECOIN", "LTCUSD" },
-            { "FTSE", "UK100" },
-            { "SILVER", "XAGUSD" },
-            { "SILBER", "XAGUSD" },
-      };
         private DataRateId mDataRateId;
+        private List<IQcBars> mQcBarList = new List<IQcBars>();
 
         public double LotPoint(Symbol symbol)
         {
@@ -476,7 +428,7 @@ namespace RobotLib
 
         public double InitialAccountBalance
         {
-            get { return mInitialAccountBalance; }
+            get { return StartBalance; }
         }
 
         public DateTime InitialTime
@@ -535,12 +487,12 @@ namespace RobotLib
         #endregion
 
         #region Methods
-        public virtual string ConfigInit(Robot robot, string timeZoneId)
+        public virtual string ConfigInit(Robot robot, string timeZoneId = "")
         {
             mRobot = robot;
             mTimeZoneId = timeZoneId;
-            mInitialAccountBalance = mRobot.Account.Balance;
-
+            AccountEquity = AccountBalance = StartBalance = Account.Balance;
+            mRobot.Positions.Closed += OnPositionClosed;
             return "";
         }
 
@@ -553,6 +505,29 @@ namespace RobotLib
             PostTick();
             mIsInit = false;
             mIs1stTick = true;
+        }
+
+        private void OnPositionClosed(PositionClosedEventArgs args)
+        {
+            var netProfit = 0.0;
+#if CTRADER && SELF_ACCOUNTING
+            var grossProfit = 0.0;
+            (grossProfit, netProfit) = GetNetProfitFromLabel(args.Position);
+#endif
+#if !CTRADER || PLATFORM_ACCOUNTING
+            netProfit = args.Position.NetProfit;
+#endif
+            if (netProfit >= 0)
+            {
+                AccountWinProfit += netProfit;
+                AccountWinningTrades++;
+            }
+            else
+            {
+                AccountLossProfit += -netProfit;
+                AccountLoosingTrades++;
+            }
+            AccountBalance += netProfit;
         }
 
         public virtual void PreTick()
@@ -568,6 +543,153 @@ namespace RobotLib
                         mDataRateId = DataRateId.Minutes;
                     else
                         mDataRateId = DataRateId.Timeframe;
+
+            // On each new second, update all QcBars
+            foreach (var qcBar in mQcBarList)
+                qcBar.OnTick(Time, PrevTime);
+
+            UpdateProfit();
+        }
+
+        public string OnStopPreTick(string version, int configsCount)
+        {
+            var infoText = "";
+
+            PreTick();
+
+            TotalTrades = AccountWinningTrades + AccountLoosingTrades;
+            ProfitFactor = AccountWinProfit / AccountLossProfit;
+            var netProfit = AccountWinProfit - AccountLossProfit;
+            TradesPerMonth = ((double)TotalTrades / ((Time - InitialTime).TotalDays / 365)) / 12;
+            ProfitConstanceness = CalculateGoodnessOfFit(mRobot.History) * 100; // R² = 1 means perfect fit, R² = 0 means no fit
+
+            var annualProfit = netProfit / ((Time - InitialTime).TotalDays / 365);
+            var annualProfitPercent = 0 == TotalTrades ? 0 : 100.0 * annualProfit / InitialAccountBalance;
+            var maxCurrentEquityDdPercent = 100 * MaxEquityDrawdownValue / MaxEquity;
+            var maxStartEquityDdPercent = 100 * MaxEquityDrawdownValue / InitialAccountBalance;
+            Calmar = 0 == MaxEquityDrawdownValue ? 0 : annualProfit / MaxEquityDrawdownValue;
+            var winningRatioPercent = 0 == TotalTrades ? 0 : 100 * (double)AccountWinningTrades / TotalTrades;
+#if !CTRADER
+            //var AverageEtd = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageEtd;
+            //var AverageMae = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageMae;
+            //var AverageMfe = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageMfe;
+            //var AverageProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageProfit;
+            //var CumProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit;
+            //var Drawdown = SystemPerformance.AllTrades.TradesPerformance.Currency.Drawdown;
+            //var LargestLoser = SystemPerformance.AllTrades.TradesPerformance.Currency.LargestLoser;
+            //var LargestWinner = SystemPerformance.AllTrades.TradesPerformance.Currency.LargestWinner;
+            //var ProfitPerMonth = SystemPerformance.AllTrades.TradesPerformance.Currency.ProfitPerMonth;
+            //var StdDev = SystemPerformance.AllTrades.TradesPerformance.Currency.StdDev;
+            //var Turnaround = SystemPerformance.AllTrades.TradesPerformance.Currency.Turnaround;
+            //var Ulcer = SystemPerformance.AllTrades.TradesPerformance.Currency.Ulcer;
+#endif
+            infoText += DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + " | " + version;
+            infoText += "\n# of config files: " + configsCount.ToString();
+            infoText += "\nMaxMargin: " + Account.Asset + " "
+                + ConvertUtils.DoubleToString(MaxMargin, 2);
+            infoText += "\nMaxSameTimeOpen: " + SameTimeOpen.ToString()
+                + "; @ " + SameTimeOpenDateTime.ToString("dd.MM.yyyy HH:mm:ss")
+                + "; Count# " + SameTimeOpenCount.ToString();
+            infoText += "\nMax Balance Drawdown Value: " + Account.Asset
+                + " " + ConvertUtils.DoubleToString(MaxBalanceDrawdownValue, 2)
+                + "; @ " + MaxBalanceDrawdownTime.ToString("dd.MM.yyyy HH:mm:ss")
+                + "; Count# " + MaxBalanceDrawdownCount.ToString();
+            infoText += "\nMax Balance Drawdown%: " + (0 == MaxBalance
+                ? "NaN"
+                : ConvertUtils.DoubleToString(100 * MaxBalanceDrawdownValue / MaxBalance, 2));
+            infoText += "\nMax Equity Drawdown Value: " + Account.Asset
+                + " " + ConvertUtils.DoubleToString(MaxEquityDrawdownValue, 2)
+               + "; @ " + MaxEquityDrawdownTime.ToString("dd.MM.yyyy HH:mm:ss")
+               + "; Count# " + MaxEquityDrawdownCount.ToString();
+            infoText += "\nMax Current Equity Drawdown %: "
+                + ConvertUtils.DoubleToString(maxCurrentEquityDdPercent, 2);
+            infoText += "\nMax Start Equity Drawdown %: "
+                + ConvertUtils.DoubleToString(maxStartEquityDdPercent, 2);
+            infoText += "\nNet Profit: " + Account.Asset + " "
+                + ConvertUtils.DoubleToString(netProfit, 2);
+            infoText += "\nProfit Factor: " + (0 == AccountLoosingTrades
+                ? "-"
+                : ConvertUtils.DoubleToString(ProfitFactor, 2));
+            //infoText += "\nSharpe Ratio: " + ConvertUtils.DoubleToString(SharpeRatio, 2);
+            //infoText += "\nSortino Ratio: " + ConvertUtils.DoubleToString(SortinoRatio, 2);
+            infoText += "\nCalmar Ratio: " + ConvertUtils.DoubleToString(Calmar, 2);
+            infoText += "\nProfit Constanceness %: " + ConvertUtils.DoubleToString(ProfitConstanceness, 2);
+            infoText += "\nWinning Ratio: " + ConvertUtils.DoubleToString(winningRatioPercent, 2);
+            infoText += "\nTrades Per Month: " + ConvertUtils.DoubleToString(TradesPerMonth, 2);
+            infoText += "\nAverage Annual Profit Percent: "
+                + ConvertUtils.DoubleToString(annualProfitPercent, 2);
+
+            if (0 != OpenDurationCount)
+            {
+                infoText += "\nMin / Avg / Max Tradeopen Duration (Day.Hour.Min.Sec): "
+                   + MinOpenDuration.ToString(@"dd\.hh\.mm\.ss") + " / "
+                   + (AvgOpenDuration = TimeSpan.FromTicks(OpenDurationSum.Ticks / OpenDurationCount))
+                   .ToString(@"dd\.hh\.mm\.ss")
+                   + " / " + MaxOpenDuration.ToString(@"dd\.hh\.mm\.ss");
+            }
+
+            return infoText;
+        }
+
+        public void OnStop()
+        {
+            // On each new second, update all QcBars
+            foreach (var qcBar in mQcBarList)
+                qcBar.OnStop();
+        }
+
+        public void UpdateProfit()
+        {
+            var grossProfit = 0.0;
+            var netProfit = 0.0;
+            foreach (var pos in mRobot.Positions)
+            {
+                (grossProfit, netProfit) = GetNetProfitFromLabel(pos);
+                AccountEquity = AccountBalance + netProfit;
+            }
+
+            if (Account.Balance != AccountBalance)
+            { }
+            //Debugger.Break();
+
+            if (Account.Equity != AccountEquity)
+            { }
+            //Debugger.Break();
+
+            CoFu.Max(ref MaxMargin, Account.Margin);
+            if (CoFu.Max(ref SameTimeOpen, mRobot.Positions.Count))
+            {
+                SameTimeOpenDateTime = Time;
+                SameTimeOpenCount = mRobot.History.Count;
+            }
+
+            var balance = 0.0;
+#if CTRADER && SELF_ACCOUNTING
+            balance = AccountBalance;
+#endif
+#if !CTRADER || PLATFORM_ACCOUNTING
+            balance = Account.Balance;
+#endif
+            CoFu.Max(ref MaxBalance, balance);
+            if (CoFu.Max(ref MaxBalanceDrawdownValue, MaxBalance - balance))
+            {
+                MaxBalanceDrawdownTime = Time;
+                MaxBalanceDrawdownCount = mRobot.History.Count;
+            }
+
+            var accountEquity = 0.0;
+#if CTRADER && SELF_ACCOUNTING
+            accountEquity = AccountEquity;
+#endif
+#if !CTRADER || PLATFORM_ACCOUNTING
+            accountEquity = Account.Equity;
+#endif
+            CoFu.Max(ref MaxEquity, accountEquity);
+            if (CoFu.Max(ref MaxEquityDrawdownValue, MaxEquity - accountEquity))
+            {
+                MaxEquityDrawdownTime = Time;
+                MaxEquityDrawdownCount = mRobot.History.Count;
+            }
         }
 
         public virtual void PostTick()
@@ -625,12 +747,12 @@ namespace RobotLib
                 break;
 #endif
                 //case ProfitMode.LotsPro10k:
-                //volumeLotSize = (mRobot.Account.Balance - mRobot.Account.Margin) / 10000 * value;
+                //volumeLotSize = (AbstractRobot.Account.Balance - AbstractRobot.Account.Margin) / 10000 * value;
                 //desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
                 //break;
 
                 //case ProfitMode.ProfitPercent:
-                //desiMon = (mRobot.Account.Balance - mRobot.Account.Margin) * value / 100;
+                //desiMon = (AbstractRobot.Account.Balance - AbstractRobot.Account.Margin) * value / 100;
                 //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon, tpPts, CommissionPerLot(symbol));
                 //break;
 
@@ -641,9 +763,9 @@ namespace RobotLib
                 //case ProfitMode.RiskConstant:
                 //case ProfitMode.RiskReinvest:
                 //var balance = ProfitMode.RiskReinvest == profitMode
-                //   ? mRobot.Account.Balance
-                //   : mInitialAccountBalance;
-                //double moneyToRisk = (balance - mRobot.Account.Margin) * value / 100;
+                //   ? AbstractRobot.Account.Balance
+                //   : StartBalance;
+                //double moneyToRisk = (balance - AbstractRobot.Account.Margin) * value / 100;
                 //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, moneyToRisk, riskPoints, CommissionPerLot(symbol));
                 //desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
                 //break;
@@ -651,7 +773,7 @@ namespace RobotLib
                 case ProfitMode.ConstantInvest:
                 case ProfitMode.Reinvest:
                 var investMoney = (profitMode == ProfitMode.ConstantInvest
-                   ? mInitialAccountBalance
+                   ? StartBalance
                    : mRobot.Account.Balance) * value / 100;
                 var units = investMoney * symbol.TickSize / symbol.TickValue / symbol.Bid;
                 volumeLotSize = symbol.VolumeInUnitsToQuantity(units);
@@ -680,7 +802,7 @@ namespace RobotLib
 
             normalizedVolume = symbol.NormalizeVolumeInUnits(
                symbol.QuantityToVolumeInUnits(
-               //Math.Max(ParentBot.mBot.mRobot.LotPoint(ParentBot.BotSymbol),
+               //Math.Max(ParentBot.AbstractRobot.AbstractRobot.LotPoint(ParentBot.BotSymbol),
                rawVolume));
 
             return retVal;
@@ -729,7 +851,7 @@ namespace RobotLib
             return retVal;
         }
 
-        public void PrintComment(string version, string comment, int avgSpreadPts, bool normNyTime = false)
+        public void PrintComment(string version, string comment, int avgSpreadPts = 0, bool normNyTime = false)
         {
             // Warning: DrawStaticText causes exception when Optimizing !!!
             string sCurrency = " " + mRobot.Account.Asset.Name;
@@ -737,7 +859,7 @@ namespace RobotLib
             var sSwapLong = ConvertUtils.DoubleToString(SwapPerLot(mRobot.Symbol, true), 2) + sCurrency;
             var sSwapShort = ConvertUtils.DoubleToString(SwapPerLot(mRobot.Symbol, false), 2) + sCurrency;
 
-            //var com = mRobot.SymbolName.com
+            //var com = AbstractRobot.SymbolName.com
 
             string sB2NyTime = "";
             DateTime tNyt = mCurrentTime;// CreateTime(TimeUtils.TimeUtc2Nyt(mCurrentTime.ToNativeSec(), false));
@@ -760,8 +882,8 @@ namespace RobotLib
             var pointValue = mRobot.Symbol.TickValue * pointFactor; // TickValue is in USD per 1 Point
             var platform = "Lot";
 #else
-            // public double TickValue => mRobot.Instrument.MasterInstrument.TickSize
-            // * mRobot.Instrument.MasterInstrument.PointValue;
+            // public double TickValue => AbstractRobot.Instrument.MasterInstrument.TickSize
+            // * AbstractRobot.Instrument.MasterInstrument.PointValue;
             var pointValue = mRobot.Symbol.TickValue / mRobot.Symbol.TickSize;
             var platform = "Contract";
 #endif
@@ -789,7 +911,7 @@ namespace RobotLib
             mRobot.Chart.DrawStaticText(
                "Comment4",
                "\n\n\n" + cCommentTab + "Account-Leverage: 1:" + ConvertUtils.DoubleToString(mRobot.Account.PreciseLeverage, 0)
-               //+ ", " + mRobot.SymbolName.Name + "-Leverage: " + sSymLev,  // cTrader does not have SymbolName-Leverages
+               //+ ", " + mAbstractRobot.SymbolName.Name + "-Leverage: " + sSymLev,  // cTrader does not have SymbolName-Leverages
                , VerticalAlignment.Top,
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
@@ -808,12 +930,12 @@ namespace RobotLib
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
 
-            /*mRobot.Chart.DrawStaticText(
+            /*mAbstractRobot.Chart.DrawStaticText(
                "Comment7",
                "\n\n\n\n\n\n" + cCommentTab + "New York Time" + (normNyTime ? " normalized: " : ": ") + sNyTime + sB2NyTime,
                VerticalAlignment.Top,
                HorizontalAlignment.Left,
-               mRobot.Chart.ColorSettings.ForegroundColor);*/
+               mAbstractRobot.Chart.ColorSettings.ForegroundColor);*/
 #endif
             string[] lines = comment.Split('\n');
             string skipLines = "";
@@ -909,7 +1031,7 @@ namespace RobotLib
                    + ",PointValue"                                          // 4. tickvalue
                    + ",DiffPts"                                             // 5. DiffActPts
                    + ",DiffGross"                                           // 6. DiffActCurrency
-                   + ",NetProfit"                                           // 7. net profit
+                   + ",NetProfit"                                    // 7. net profit
                    + ",NetProf/Lot"                                         // 8. net profit per lot
                    + ",AccountMargin"                                       // 9. Account Margin
                    + ",TradeMargin"                                         // 10. Margin of this single trade
@@ -1114,7 +1236,7 @@ namespace RobotLib
             mLogger.Flush();
         }
 
-        public void LoggerClose(string preText)
+        public void LoggerClose(string preText = "")
         {
             if (null == mLogger || !mLogger.IsOpen)
                 return;
@@ -1191,11 +1313,6 @@ namespace RobotLib
             var retVal = new TimeFrame(tfSecs);
 #endif
             return retVal;
-        }
-
-        protected bool IsNewBar(int timeframe)
-        {
-            return mPrevTime.ToNativeSec() / (int)timeframe != mCurrentTime.ToNativeSec() / timeframe;
         }
 
         public void DrawOnOpenedPosition(
@@ -1352,9 +1469,9 @@ namespace RobotLib
             return null;
         }
 
-        public TradeResult CloseTrade(Position pos)
+        public TradeResult CloseTrade(Position position)
         {
-            return pos.Close();
+            return position.Close();
         }
 
         public TradeResult CancelPending(PendingOrder pending)
@@ -1369,15 +1486,81 @@ namespace RobotLib
             return mBot.Chart.DrawStaticText("StaticText" + x + '_' + y,
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
         }
+
+        public IQcBars GetQcBars(TimeFrame timeframe, string symbolName, string SymbolPair, DateTime time)
+        {
+            IQcBars bars = null;
+#if CTRADER
+            var tfSecs = Tf2Secs(timeframe);
+            bars = SymbolPair.Contains(">>")
+                ? new CtQcPipeBars(tfSecs, symbolName, SymbolPair, Time)
+                : new CtOrgBars(tfSecs, symbolName, mRobot);
+
+            mQcBarList.Add(bars);
+#else
+            var barsSeconds = Tf2Secs(timeframe);
+            if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))
+            {
+                var ntBars = new NtQcBars(mRobot, symbolName, barsSeconds);
+                mRobot.BarsDictionary.Add((barsSeconds, symbolName), ntBars);
+                bars = ntBars;
+            }
+            else
+                bars = mRobot.BarsDictionary[(barsSeconds, symbolName)];
+#endif
+            return bars;
+        }
+
+        static public (double, double) GetNetProfitFromLabel(Position position)
+        {
+            var trueOpenPrice = double.Parse(position.Label.Split(',')[1], CultureInfo.InvariantCulture);
+            var grossProfit = Math.Round(CoFu.DiffLong(TradeType.Buy == position.TradeType,
+                position.CurrentPrice, trueOpenPrice)
+                    * position.VolumeInUnits * position.Symbol.TickValue / position.Symbol.TickSize,
+                position.Symbol.Digits);
+            var netProfit = grossProfit + position.Commissions + position.Swap;
+            return (grossProfit, netProfit);
+        }
+
+        // returns R² of HistoricalTrade AccountNetProfits over the time
+        // R² = 1 means perfect fit, R² = 0 means no fit
+        public double CalculateGoodnessOfFit(History trades)
+        {
+            var sortedTrades = trades.OrderBy(t => t.ClosingTime).ToList();
+            if (sortedTrades.Count < 2)
+                return double.NaN;
+
+            // X = time (double), Y = cumulative NetProfit
+            var x = sortedTrades.Select(t => t.ClosingTime.ToOADate()).ToArray();
+            var y = sortedTrades
+                .Select(t => t.NetProfit)
+                .Aggregate(new List<double>(), (acc, profit) =>
+                {
+                    acc.Add((acc.Count > 0 ? acc[acc.Count - 1] : 0) + profit);
+                    return acc;
+                })
+                .ToArray();
+
+            // Get regression parameters: intercept and slope
+            // Moved from Math.Numerics to CoFu since NinjaTrader cannot work with Math.Numerics :-(
+            var (intercept, slope) = CoFu.Fit(x, y);
+
+            // Calculate predicted y-values
+            var yPredicted = x.Select(xi => slope * xi + intercept);
+
+            // Return R²
+            // 1.0      = Perfect fit — all data points lie exactly on the regression line
+            // 0.0      = No linear correlation — model explains none of the variation in the data
+            // < 0.0    =  Worse than a horizontal line — model fits worse than using the mean
+            return CoFu.RSquared(y, yPredicted);
+        }
         #endregion
 
         #region cTrader Api
         public void Print(string message, params object[] parameters) => mRobot.Print(message + parameters);
         public Symbols Symbols => mRobot.Symbols;
-        public MarketData MarketData => mRobot.MarketData;
         public DateTime Time => mRobot.Time;
         public Chart Chart => mRobot.Chart;
-        public Bars Bars => mRobot.Bars;
         public IAccount Account => mRobot.Account;
         #endregion
     }

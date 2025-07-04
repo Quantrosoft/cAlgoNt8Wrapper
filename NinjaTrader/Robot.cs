@@ -47,8 +47,9 @@ namespace cAlgo.API
     public class Robot : StrategyRenderBase
     {
         #region Members
-        [XmlIgnore] public new Bars Bars;
         [XmlIgnore] public Symbol Symbol;
+        // Bars are now in AbstractRobot.cs as IQcBars QcBars
+        // because they are needed by both platforms now
         [XmlIgnore] public Symbols Symbols;
         [XmlIgnore] public new Account Account;
         [XmlIgnore] public new Positions Positions;
@@ -60,6 +61,7 @@ namespace cAlgo.API
         [XmlIgnore] public double CommissionPerQuantity;
         [XmlIgnore] public TimeZoneInfo PlatformTimeZoneInfo;
         [XmlIgnore] public MarketDataEventArgs MarketDataEventArgs;
+        [XmlIgnore] public AbstractRobot AbstractRobot;
         [XmlIgnore]
         public Dictionary<string, string> Icm2Pepper = new()  // ICM ==> Pepperstone symbol convert
         {
@@ -74,6 +76,10 @@ namespace cAlgo.API
             {"XTIUSD", "SpotCrude"},
             {"XNGUSD", "NatGas"}
         };
+        [XmlIgnore]
+        public Dictionary<(int, string), NtQcBars> BarsDictionary
+            = new Dictionary<(int, string), NtQcBars>();
+
         [Browsable(false)]
         [XmlIgnore]
         public new DateTime Time =>
@@ -84,16 +90,15 @@ namespace cAlgo.API
         private bool mDoTerminate;
         private bool mDoStart;
         private CSRobotFactory mRobotFactory;
-        private IRobot mRobot;
         private bool mIsStopped;
         #endregion
 
         #region Start
         protected void InitDataSeries()
         {
-            // Generate NinjaTrader bid and ask data series as pendants of requested cTrader Bars
+            // Generate NinjaTrader bid and ask data series as pendants of requested cTrader NtQcBars
             int count = 0;
-            foreach (KeyValuePair<(int, string), Bars> kvp in MarketData.BarsDictionary)
+            foreach (KeyValuePair<(int, string), NtQcBars> kvp in BarsDictionary)
             {
                 if (0 == kvp.Value.BarsPeriod.Value)
                     throw new Exception($"Error: Bars Period Value may not be 0");
@@ -101,7 +106,7 @@ namespace cAlgo.API
                 // skip primary data series
                 if (0 == count)
                 {
-                    Bars = kvp.Value;   // Set default bars
+                    AbstractRobot.QcBars = kvp.Value;   // Set default bars
 
                     // Without TickReplay primary data series must be set to Bid
                     // then we need a companion Ask data series
@@ -182,11 +187,10 @@ namespace cAlgo.API
                     #region Init
                     mDoTerminate = mDoStart = true;
                     mRobotFactory = new CSRobotFactory();
-                    mRobot = mRobotFactory.CreateRobot();
+                    AbstractRobot = mRobotFactory.CreateRobot();
                     PlatformTimeZoneInfo = Globals.GeneralOptions.TimeZoneInfo;
 
                     Symbols = new Symbols(this);
-                    MarketData = new MarketData(this);
                     Account = new Account(this);
                     Positions = new Positions(this);
                     PendingOrders = new PendingOrders(this);
@@ -199,15 +203,19 @@ namespace cAlgo.API
                     else if (BarsPeriod.BarsPeriodType == BarsPeriodType.Day)
                         dataRateSeconds *= SEC_PER_DAY;
 
-                    // Set default cTrader Bars and Symbol as pendant of NinjaTrader primary data series
-                    Bars = MarketData.GetBars(new TimeFrame(dataRateSeconds), Instrument.FullName);
+                    AbstractRobot.ConfigInit(this); // set time zone, open/close callbacks, etc.
+
+                    // Set default QcBars and Symbol as pendant of NinjaTrader primary data series
+                    var timeframe = AbstractRobot.Secs2Tf(dataRateSeconds, out _);
+                    AbstractRobot.QcBars = AbstractRobot.GetQcBars(timeframe,
+                        Instrument.FullName,
+                        Instrument.FullName,
+                        Time);
                     Symbol = Symbols.GetSymbol(Instrument.FullName);
 
-                    mRobot.ConfigInit(this); // set time zone, open/close callbacks, etc.
-
-                    // New Bars and Symbols can and must be added here
+                    // New NtQcBars and Symbols can and must be added here
                     OnConfigure();      // Call user's bot init 1st time OnConfigure
-                    InitDataSeries();   // Add DataSeries as reqested in MarketData.GetBars
+                    InitDataSeries();   // Add NtQcDataSeries as reqested GetQcBars()
                     #endregion
                 }
                 break;
@@ -215,18 +223,18 @@ namespace cAlgo.API
                 case State.DataLoaded:
                 {
                     if (IsTickReplay)
-                        Debug.Assert(BarsArray.Length == MarketData.BarsDictionary.Count,
+                        Debug.Assert(BarsArray.Length == BarsDictionary.Count,
                             "Error: Number of BarsArray does not match number of MarketData.BarsDictionary");
                     else
                     {
-                        Debug.Assert(BarsArray.Length == 2 * MarketData.BarsDictionary.Count,
+                        Debug.Assert(BarsArray.Length == 2 * BarsDictionary.Count,
                             "Error: Number of BarsArray does not match number of MarketData.BarsDictionary");
 
                         MarketDataEventArgs = new MarketDataEventArgs();
                     }
 
                     // Init bars and their series 
-                    foreach (var bars in MarketData.BarsDictionary)
+                    foreach (var bars in BarsDictionary)
                         bars.Value.OnBarsDataLoaded();
                 }
                 break;
@@ -273,7 +281,6 @@ namespace cAlgo.API
             }
         }
 
-
         protected override void OnMarketData(MarketDataEventArgs args)
         {
             // Realtime trading or Tick Replay must be active for OnBarsMarketData() to get called
@@ -296,7 +303,7 @@ namespace cAlgo.API
                 try
                 {
                     // Update the bars with the new market data
-                    foreach (var bar in MarketData.BarsDictionary)
+                    foreach (var bar in BarsDictionary)
                         bar.Value.OnBarsMarketData();
 
                     if (mDoStart)
@@ -306,9 +313,9 @@ namespace cAlgo.API
                     }
 
                     // Call user bot
-                    mRobot.PreTick();
+                    AbstractRobot.PreTick();
                     OnTick();
-                    mRobot.PostTick();
+                    AbstractRobot.PostTick();
                 }
                 catch (Exception)
                 {
@@ -339,9 +346,9 @@ namespace cAlgo.API
                     mDoStart = false;
                 }
 
-                mRobot.PreTick();
+                AbstractRobot.PreTick();
                 OnTick();
-                mRobot.PostTick();
+                AbstractRobot.PostTick();
             }
             catch (Exception)
             {
@@ -664,19 +671,20 @@ namespace cAlgo.API
             History.Add(histPos);
 
             var signal = GetSignal(position.Label, position.Comment);
+            Order order = null;
             if (position.TradeType == TradeType.Buy)
             {
                 if (position.GrossProfit > 0)
-                    ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    order = ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
                 else
-                    ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
+                    order = ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
             else
             {
                 if (position.GrossProfit > 0)
-                    ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    order = ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
                 else
-                    ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
+                    order = ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
 
             return new TradeResult() { IsSuccessful = true };

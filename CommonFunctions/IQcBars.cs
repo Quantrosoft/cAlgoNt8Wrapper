@@ -21,19 +21,31 @@ SOFTWARE.
 */
 
 using cAlgo.API;
+using System;
 
-namespace RobotLib.Cs
+namespace TdsCommons
 {
-    public class CSRobotFactory : IRobotFactory
+    public interface IQcBars
     {
-        public ILogger CreateLogger(Robot robot)
-        {
-            return new CsLogger(robot);
-        }
+        #region Members
+        IQcTimeSeries OpenTimes { get; }
+        IQcDataSeries BidOpenPrices { get; }
+        IQcDataSeries BidHighPrices { get; }
+        IQcDataSeries BidLowPrices { get; }
+        IQcDataSeries BidClosePrices { get; }
+        IQcDataSeries BidVolumes { get; }
+        IQcDataSeries AskOpenPrices { get; }
+        IQcDataSeries AskHighPrices { get; }
+        IQcDataSeries AskLowPrices { get; }
+        IQcDataSeries AskClosePrices { get; }
+        IQcDataSeries AskVolumes { get; }
+        #endregion
 
-        public AbstractRobot CreateRobot()
-        {
-            return new CsRobot();
-        }
+        public int Count { get; }
+        public int TimeFrameSeconds { get; }
+        public string SymbolName { get; }
+        public bool IsNewBar { get; }
+        void OnTick(DateTime fromTime, DateTime prevTime);
+        void OnStop();
     }
 }
