@@ -98,8 +98,8 @@ namespace cAlgo.API
                 if (!mTickServer.TryPeek(out mNtTick))
                     return;
 
-                if (mIsInit && mNtTick.Time > ctTime - TimeSpan.FromHours(12))
-                    throw new Exception("Set start date of NinjaTrader at least 2 days earlier than cTrader");
+                if (mIsInit && mNtTick.Time > ctTime - TimeSpan.FromSeconds(10 * TimeFrameSeconds))
+                    throw new Exception("Set start date of NinjaTrader earlier than cTrader");
 
                 var ntNative = mNtTick.Time.ToNativeSec();
                 bool isNewNtBar = CoFu.IsNewBar(TimeFrameSeconds, mNtTick.Time, mNtPrev);

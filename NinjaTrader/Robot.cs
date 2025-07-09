@@ -209,8 +209,7 @@ namespace cAlgo.API
                     var timeframe = AbstractRobot.Secs2Tf(dataRateSeconds, out _);
                     AbstractRobot.QcBars = AbstractRobot.GetQcBars(timeframe,
                         Instrument.FullName,
-                        Instrument.FullName,
-                        Time);
+                        Instrument.FullName);
                     Symbol = Symbols.GetSymbol(Instrument.FullName);
 
                     // New NtQcBars and Symbols can and must be added here

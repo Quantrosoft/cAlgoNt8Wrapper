@@ -26,6 +26,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TdsCommons
 {
@@ -38,6 +39,7 @@ namespace TdsCommons
         private readonly ConcurrentQueue<T> mQueue;
         private readonly Thread mWriterThread;
         private readonly CancellationTokenSource mCts = new();
+        private Task mWriterTask;
         private bool mWriterDied;
 
         public TickServerWriter(int capacity, string pipeName)
@@ -47,7 +49,18 @@ namespace TdsCommons
             mSlotSemaphore = new SemaphoreSlim(capacity, capacity);
             mItemSemaphore = new SemaphoreSlim(0, capacity);
             mQueue = new ConcurrentQueue<T>();
-            mWriterThread = new Thread(WriterLoop) { IsBackground = true };
+
+            mWriterThread = new Thread(() =>
+            {
+                mWriterTask = WriterLoopAsync(mCts.Token);
+                try
+                { mWriterTask.Wait(); }
+                catch { }
+            })
+            {
+                IsBackground = true
+            };
+
             mWriterThread.Start();
         }
 
@@ -63,35 +76,48 @@ namespace TdsCommons
                 mItemSemaphore.Release();
                 return true;
             }
-            catch (Exception)   // cTrader terminated
+            catch
             {
                 return false;
             }
         }
 
-        private void WriterLoop()
+        private async Task WriterLoopAsync(CancellationToken token)
         {
             try
             {
-                using var pipe = new NamedPipeServerStream(mPipeName, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-                pipe.WaitForConnection();
-
-                using var writer = new BinaryWriter(pipe);
-                while (!mCts.IsCancellationRequested)
+                using (var pipe = new NamedPipeServerStream(
+                    mPipeName,
+                    PipeDirection.Out,
+                    1,
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous))
                 {
-                    mItemSemaphore.Wait(mCts.Token);
+                    await pipe.WaitForConnectionAsync(token).ConfigureAwait(false);
 
-                    if (mQueue.TryDequeue(out var item))
+                    using (var writer = new BinaryWriter(pipe))
                     {
-                        var bytes = StructToBytes(item);
-                        writer.Write(bytes.Length);
-                        writer.Write(bytes);
-                        writer.Flush();
-                        mSlotSemaphore.Release();
+                        while (!token.IsCancellationRequested)
+                        {
+                            await mItemSemaphore.WaitAsync(token).ConfigureAwait(false);
+
+                            if (mQueue.TryDequeue(out var item))
+                            {
+                                var bytes = StructToBytes(item);
+                                writer.Write(bytes.Length);
+                                writer.Write(bytes);
+                                writer.Flush();
+                                mSlotSemaphore.Release();
+                            }
+                        }
                     }
                 }
             }
-            catch (Exception)
+            catch (OperationCanceledException)
+            {
+                // Normal exit
+            }
+            catch
             {
                 mWriterDied = true;
             }
@@ -116,7 +142,16 @@ namespace TdsCommons
         public void Dispose()
         {
             mCts.Cancel();
-            mWriterThread.Join();
+
+            mWriterThread.Join(3000);
+
+            if (mWriterTask != null && !mWriterTask.IsCompleted)
+            {
+                try
+                { mWriterTask.Wait(); }
+                catch { }
+            }
+
             mCts.Dispose();
             mSlotSemaphore.Dispose();
             mItemSemaphore.Dispose();

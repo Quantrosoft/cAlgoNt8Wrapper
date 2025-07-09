@@ -348,7 +348,7 @@ namespace RobotLib
         protected int mLoggingTradeCount;
         protected double mLoggingSaldo, mSwapLong, mSwapShort, mCommissions;
         protected string mTimeZoneId, cCommentTab;
-        protected DateTime mPrevTime, mCurrentTime, mInitialTime;
+        protected DateTime mPrevTime, mInitialTime;
         protected Color[] cTradeColor;
         protected ChartIconType[] cTradeIcon;
         protected DateTime cInvalidTime;
@@ -532,14 +532,12 @@ namespace RobotLib
 
         public virtual void PreTick()
         {
-            mCurrentTime = mRobot.Time.ManageTimeZones(mTimeZoneId, mIsInit);
-
             if (!mIsInit)
                 if (DataRateId.Undefined == DataRateId)
                     if (mRobot.RunningMode == RunningMode.RealTime
-                          || mCurrentTime - mPrevTime < TimeSpan.FromSeconds(50))
+                          || Time - mPrevTime < TimeSpan.FromSeconds(50))
                         mDataRateId = DataRateId.Ticks;
-                    else if (mCurrentTime - mPrevTime < TimeSpan.FromSeconds(115))
+                    else if (Time - mPrevTime < TimeSpan.FromSeconds(115))
                         mDataRateId = DataRateId.Minutes;
                     else
                         mDataRateId = DataRateId.Timeframe;
@@ -695,7 +693,7 @@ namespace RobotLib
         public virtual void PostTick()
         {
             mIs1stTick = false;
-            mPrevTime = mCurrentTime;
+            mPrevTime = Time;
         }
 
         public double GetBidAskPrice(Symbol symbol, BidAsk bidAsk)
@@ -862,13 +860,13 @@ namespace RobotLib
             //var com = AbstractRobot.SymbolName.com
 
             string sB2NyTime = "";
-            DateTime tNyt = mCurrentTime;// CreateTime(TimeUtils.TimeUtc2Nyt(mCurrentTime.ToNativeSec(), false));
+            DateTime tNyt = Time;   // CreateTime(TimeUtils.TimeUtc2Nyt(mCurrentTime.ToNativeSec(), false));
 
             if (normNyTime)
                 tNyt = tNyt + TimeSpan.FromHours(7);
 
             string sNyTime = tNyt.ToString("dd/MM/yyyy HH:mm:ss");
-            sB2NyTime = ", Broker-NYT: " + ConvertUtils.DoubleToString((mCurrentTime - tNyt).TotalHours, 0) + "h";
+            sB2NyTime = ", Broker-NYT: " + ConvertUtils.DoubleToString((Time - tNyt).TotalHours, 0) + "h";
 
             mRobot.Chart.DrawStaticText(
                "Comment1",
@@ -1487,7 +1485,7 @@ namespace RobotLib
                yOffset + xOffset + text, VerticalAlignment.Top, HorizontalAlignment.Left, color);
         }
 
-        public IQcBars GetQcBars(TimeFrame timeframe, string symbolName, string SymbolPair, DateTime time)
+        public IQcBars GetQcBars(TimeFrame timeframe, string symbolName, string SymbolPair)
         {
             IQcBars bars = null;
 #if CTRADER
