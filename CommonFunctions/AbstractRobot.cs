@@ -438,7 +438,7 @@ namespace RobotLib
 
         public int SpreadInPoints(Symbol symbol)
         {
-            return iPrice(symbol.Ask - symbol.Bid, symbol.TickSize);
+            return iPrice(symbol.Ask - symbol.Bid, symbol.Digits);
         }
 
         public bool Is1stTick => mIs1stTick;
@@ -849,7 +849,7 @@ namespace RobotLib
             return retVal;
         }
 
-        public void PrintComment(string version, string comment, int avgSpreadPts = 0, bool normNyTime = false)
+        public void PrintComment(string version, string comment, int avgSpreadPts = -1, bool normNyTime = false)
         {
             // Warning: DrawStaticText causes exception when Optimizing !!!
             string sCurrency = " " + mRobot.Account.Asset.Name;
@@ -897,7 +897,7 @@ namespace RobotLib
 
             mRobot.Chart.DrawStaticText("Comment3",
                "\n\n" + cCommentTab + "Spread: " + ConvertUtils.IntegerToString(SpreadInPoints(mRobot.Symbol))
-               + (-1 == avgSpreadPts ? "" : ", AvgSpread: " + ConvertUtils.IntegerToString(avgSpreadPts))
+               + (-1 == avgSpreadPts ? "" : (", AvgSpread: " + ConvertUtils.IntegerToString(avgSpreadPts)))
 #if CTRADER
                + ", MaxLot: " + ConvertUtils.DoubleToString(mRobot.Symbol.VolumeInUnitsToQuantity(mRobot.Symbol.VolumeInUnitsMax), 2)
 #endif
@@ -958,8 +958,8 @@ namespace RobotLib
             // orgComment;123456,aaa,+-ppp,yyy     meaning:
             // openAskInPts,openSpreadInPts,openPrevBidOrAskDiff
             return firstPart
-               + ";" + ConvertUtils.IntegerToString(iPrice(symbol.Ask, symbol.TickSize))
-               + "," + ConvertUtils.IntegerToString(iPrice((symbol.Ask - symbol.Bid), symbol.TickSize));
+               + ";" + ConvertUtils.IntegerToString(iPrice(symbol.Ask, symbol.Digits))
+               + "," + ConvertUtils.IntegerToString(iPrice((symbol.Ask - symbol.Bid), symbol.Digits));
         }
 
         public virtual void OpenLogfile(ILogger logger,
@@ -1081,7 +1081,7 @@ namespace RobotLib
 
             double priceDiff = (TradeType.Buy == lp.TradeType ? 1 : -1)
                * (lp.ClosingPrice - lp.EntryPrice);
-            int pointDiff = iPrice(priceDiff, lp.Symbol.TickSize);
+            int pointDiff = iPrice(priceDiff, lp.Symbol.Digits);
             var lotDigits = (int)(0.5 + Math.Log10(1 / lp.Minlots));
             mLoggingSaldo += lp.NetProfit;
 
@@ -1134,7 +1134,7 @@ namespace RobotLib
                     continue;
 
                     case "OpenSpreadPts":
-                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(iPrice((openAsk - openBid), lp.Symbol.TickSize), 0));
+                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(iPrice((openAsk - openBid), lp.Symbol.Digits), 0));
                     continue;
 
                     case "CloseDate":
@@ -1177,7 +1177,7 @@ namespace RobotLib
 
                     case "CloseSpreadPts":
                     mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(iPrice(GetBidAskPrice(lp.Symbol, BidAsk.Ask)
-                       - GetBidAskPrice(lp.Symbol, BidAsk.Bid), lp.Symbol.TickSize), 0));
+                       - GetBidAskPrice(lp.Symbol, BidAsk.Bid), lp.Symbol.Digits), 0));
                     continue;
 
                     case "Saldo":
@@ -1384,14 +1384,14 @@ namespace RobotLib
 #endif
         }
 
-        public uint UiPrice(double dPrice, double tickSize)
+        public uint UiPrice(double dPrice, int digits)
         {
-            return (uint)(0.5 + dPrice / tickSize);
+            return (uint)(0.5 + dPrice * Math.Pow(10, digits));
         }
 
-        public int iPrice(double dPrice, double tickSize)
+        public int iPrice(double dPrice, int digits)
         {
-            return (int)(Math.Sign(dPrice) * (0.5 + Math.Abs(dPrice) / tickSize));
+            return (int)(Math.Sign(dPrice) * (0.5 + Math.Abs(dPrice) * Math.Pow(10, digits)));
         }
 
         public double dPrice(uint uiPrice, double tickSize)
