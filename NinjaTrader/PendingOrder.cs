@@ -219,6 +219,11 @@ namespace cAlgo.API
         /// </summary>
         public Symbol Symbol { get; internal set; }
 
+        //
+        // Summary:
+        //     Gets the order submission time.
+        public DateTime SubmittedTime => NinjaOrder.Time;
+
         /// <summary>
         /// Shortcut for Robot.ModifyPendingOrder method to change Stop Loss
         /// </summary>

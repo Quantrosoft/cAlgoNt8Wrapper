@@ -1511,7 +1511,7 @@ namespace RobotLib
 
         static public (double, double) GetNetProfitFromLabel(Position position)
         {
-            var trueOpenPrice = double.Parse(position.Label.Split(',')[1], CultureInfo.InvariantCulture);
+            var trueOpenPrice = double.Parse(position.Label.Split(',')[0], CultureInfo.InvariantCulture);
             var grossProfit = Math.Round(CoFu.DiffLong(TradeType.Buy == position.TradeType,
                 position.CurrentPrice, trueOpenPrice)
                     * position.VolumeInUnits * position.Symbol.TickValue / position.Symbol.TickSize,

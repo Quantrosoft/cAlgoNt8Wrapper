@@ -989,7 +989,7 @@ namespace cAlgo.API
                 Draw.Text(mRobot, name, true, text, time + TimeSpan.FromSeconds(mRobot.AbstractRobot.QcBars.TimeFrameSeconds), y,
                     0, NinjaBrushConverter.FromCtraderColor(color), mTextFont,
                     System.Windows.TextAlignment.Center, System.Windows.Media.Brushes.Transparent, System.Windows.Media.Brushes.Transparent,
-                    0, DashStyleHelper.Solid, 1, true, "");
+                    0, DashStyleHelper.Solid, 1, false, "");    // V0.12 isGlobal must be false to draw only in current chart
             }
 
             return new ChartText { Text = text, Time = time, Y = y, Color = color };
