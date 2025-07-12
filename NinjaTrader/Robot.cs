@@ -567,51 +567,54 @@ namespace cAlgo.API
             var isLong = tradeType == TradeType.Buy;
             var currentClosePrice = isLong ? botSymbol.Bid : botSymbol.Ask;
 
-            // In OnOrderUpdate() EnterxLimit() generates Submitted => Accepted => Working
-            // and then after the limit price is reached: Filled
-            // "Working" means the order is pending and waiting for the limit price to be reached
-            // We must add the order to the PendingOrders list BEFORE we call EnterxLimit()
-            // so that we can handle it in OnOrderUpdate()
-            var pendingOrder = new PendingOrder(this, order)
-            {
-                // TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
-                Comment = comment,
-                Label = label,
-                StopLoss = stopPrice,
-                StopLossPips = stopLossPips,
-                TakeProfit = tpPrice,
-                TakeProfitPips = takeProfitPips,
-                HasTrailingStop = false,
-                OrderType = PendingOrderType.Limit,
-                StopOrderTriggerMethod = null,
-                StopLimitRangePips = null,
-                StopLossTriggerMethod = null,
-                TargetPrice = limitPrice,
-                ExpirationTime = expiration,
-                Symbol = botSymbol,
-            };
-
-            PendingOrders.Add(pendingOrder);
-
             // NinjaOrder EnterLongLimit(int barsInProgressIndex, bool isLiveUntilCancelled, int quantity, double limitPrice, string signalName)
             // The limit order lives til end of day or til canceled
             order = isLong
                 ? EnterLongLimit(botSymbol.SymbolBarIndex, true, (int)volume, limitPrice, signal)
                 : EnterShortLimit(botSymbol.SymbolBarIndex, true, (int)volume, limitPrice, signal);
 
-            if (null != stopLossPips && 0 != stopLossPips)
+            if (null != order)
             {
-                stopPrice = CoFu.SubLong(isLong, currentClosePrice, (double)stopLossPips * 10 * TickSize);
-                SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
+                // In OnOrderUpdate() EnterxLimit() generates Submitted => Accepted => Working
+                // and then after the limit price is reached: Filled
+                // "Working" means the order is pending and waiting for the limit price to be reached
+                // We must add the order to the PendingOrders list BEFORE we call EnterxLimit()
+                // so that we can handle it in OnOrderUpdate()
+                var pendingOrder = new PendingOrder(this, order)
+                {
+                    // TradeType => NinjaOrder.IsLong ? TradeType.Buy : TradeType.Sell;
+                    Comment = comment,
+                    Label = label,
+                    StopLoss = stopPrice,
+                    StopLossPips = stopLossPips,
+                    TakeProfit = tpPrice,
+                    TakeProfitPips = takeProfitPips,
+                    HasTrailingStop = false,
+                    OrderType = PendingOrderType.Limit,
+                    StopOrderTriggerMethod = null,
+                    StopLimitRangePips = null,
+                    StopLossTriggerMethod = null,
+                    TargetPrice = limitPrice,
+                    ExpirationTime = expiration,
+                    Symbol = botSymbol,
+                };
+
+                PendingOrders.Add(pendingOrder);
+
+                if (null != stopLossPips && 0 != stopLossPips)
+                {
+                    stopPrice = CoFu.SubLong(isLong, currentClosePrice, (double)stopLossPips * 10 * TickSize);
+                    SetStopLoss(signal, CalculationMode.Price, (double)stopPrice, false);
+                }
+
+                if (null != takeProfitPips && 0 != takeProfitPips)
+                {
+                    tpPrice = CoFu.AddLong(isLong, currentClosePrice, (double)takeProfitPips * 10 * TickSize);
+                    SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
+                }
             }
 
-            if (null != takeProfitPips && 0 != takeProfitPips)
-            {
-                tpPrice = CoFu.AddLong(isLong, currentClosePrice, (double)takeProfitPips * 10 * TickSize);
-                SetProfitTarget(signal, CalculationMode.Price, (double)tpPrice);
-            }
-
-            return new TradeResult() { IsSuccessful = false, };
+            return new TradeResult() { IsSuccessful = null != order };
         }
 
         // Summary:

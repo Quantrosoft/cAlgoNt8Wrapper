@@ -26,7 +26,7 @@ using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class CtQcPipeBars : IQcBars
+    public class CtQcTickBars : IQcBars
     {
         #region Members
         public const int QcBarsSize = 1000;
@@ -45,20 +45,19 @@ namespace cAlgo.API
         public TimeFrame TimeFrame { get; internal set; }
         public int Count => OpenTimes.Count;
         public string SymbolName => mSymbolPair;
-        public bool IsNewBar => CoFu.IsNewBar(TimeFrameSeconds, mCtTime, mCtPrevTime);
+        public bool IsNewBar => mIsNewServerBar;
 
         private string mSymbolPair;
         private bool mIsInit = true;
-        private bool mIsCatchUp = true;
-        private DateTime mCtTime;
-        private DateTime mCtPrevTime;
         private TickServerReader<TickserverMarketDataArgs> mTickServer;
-        TickserverMarketDataArgs mNtTick;
+        TickserverMarketDataArgs mServerTick;
         private long mPeriodTicks;
-        private DateTime mNtPrev;
+        private long mNtPrev;
+        private ulong mMessageId;
+        private bool mIsNewServerBar;
         #endregion
 
-        public CtQcPipeBars(int barPeriodSeconds,
+        public CtQcTickBars(int barPeriodSeconds,
             string symbolName,
             string symbolPair,
             DateTime from)
@@ -67,17 +66,17 @@ namespace cAlgo.API
             mSymbolPair = symbolPair;
 
             TimeFrame = AbstractRobot.Secs2Tf(barPeriodSeconds, out _);
-            OpenTimes = new CtQcPipeTimeSeries();
-            BidOpenPrices = new CtQcPipeDataSeries();
-            BidHighPrices = new CtQcPipeDataSeries();
-            BidLowPrices = new CtQcPipeDataSeries();
-            BidClosePrices = new CtQcPipeDataSeries();
-            BidVolumes = new CtQcPipeDataSeries();
-            AskOpenPrices = new CtQcPipeDataSeries();
-            AskHighPrices = new CtQcPipeDataSeries();
-            AskLowPrices = new CtQcPipeDataSeries();
-            AskClosePrices = new CtQcPipeDataSeries();
-            AskVolumes = new CtQcPipeDataSeries();
+            OpenTimes = new CtQcTickTimeSeries();
+            BidOpenPrices = new CtQcTickDataSeries();
+            BidHighPrices = new CtQcTickDataSeries();
+            BidLowPrices = new CtQcTickDataSeries();
+            BidClosePrices = new CtQcTickDataSeries();
+            BidVolumes = new CtQcTickDataSeries();
+            AskOpenPrices = new CtQcTickDataSeries();
+            AskHighPrices = new CtQcTickDataSeries();
+            AskLowPrices = new CtQcTickDataSeries();
+            AskClosePrices = new CtQcTickDataSeries();
+            AskVolumes = new CtQcTickDataSeries();
 
             mTickServer = new TickServerReader<TickserverMarketDataArgs>(symbolPair.Replace(" ", ""));
             mPeriodTicks = TimeFrameSeconds * TimeSpan.TicksPerSecond;
@@ -87,70 +86,67 @@ namespace cAlgo.API
 
         public void OnTick(DateTime ctTime, DateTime ctPrevTime)
         {
-            mCtTime = ctTime;
-            mCtPrevTime = ctPrevTime;
             var ctNative = ctTime.ToNativeSec();
-            bool isNewCtBar = ctPrevTime <= CoFu.TimeInvalid
+            var isNewCtBar = ctPrevTime <= CoFu.TimeInvalid
                 || CoFu.IsNewBar(TimeFrameSeconds, ctTime, ctPrevTime);
 
+            long ntNative;
             do
             {
-                if (!mTickServer.TryPeek(out mNtTick))
+                if (!mTickServer.TryPeek(out mServerTick))
                     return;
 
-                if (mIsInit && mNtTick.Time > ctTime - TimeSpan.FromSeconds(10 * TimeFrameSeconds))
+                if (mIsInit && mServerTick.Time > ctTime - TimeSpan.FromSeconds(10 * TimeFrameSeconds))
                     throw new Exception("Set start date of NinjaTrader earlier than cTrader");
 
-                var ntNative = mNtTick.Time.ToNativeSec();
-                bool isNewNtBar = CoFu.IsNewBar(TimeFrameSeconds, mNtTick.Time, mNtPrev);
-
-                // If we have a new NT bar but not a new cTrader bar
-                // then wait for cTrader to also have a new bar
-                if (!mIsInit && !mIsCatchUp && isNewNtBar)
-                    if (!isNewCtBar)
-                        break;
+                ntNative = mServerTick.Time.ToNativeSec();
+                var isNewServerBar = CoFu.IsNewBar(TimeFrameSeconds, ntNative, mNtPrev);
+                mIsNewServerBar = isNewServerBar && ntNative == ctNative;
 
                 // When NT is ahead of cTrader, do not consume the NT tick but return
                 // except both have a new bar
-                if (ntNative > ctNative && !isNewCtBar && !isNewNtBar)
+                if (ntNative > ctNative)
                     break;
 
-                mTickServer.TryDequeue(out mNtTick);
+                mTickServer.TryDequeue(out mServerTick);
+                UpdateNtBar(mIsInit || isNewServerBar);
+                if (mServerTick.MessageId != mMessageId++)
+                { }
 
-                if (mIsInit || ((isNewCtBar || mIsCatchUp) && isNewNtBar))
-                {
-                    InitOpenBar(mNtTick);
-                    mIsInit = false;
-                }
+                mNtPrev = ntNative;
+            } while (ntNative < ctNative);  // loop til NinjaTrader time is >= cTrader time
 
-                #region Bar update
-                BidHighPrices.Swap(Math.Max(BidHighPrices.LastValue, mNtTick.Bid));
-                BidLowPrices.Swap(Math.Min(BidLowPrices.LastValue, mNtTick.Bid));
-                AskHighPrices.Swap(Math.Max(AskHighPrices.LastValue, mNtTick.Ask));
-                AskLowPrices.Swap(Math.Min(AskLowPrices.LastValue, mNtTick.Ask));
-
-                BidClosePrices.Swap(mNtTick.Bid);
-                AskClosePrices.Swap(mNtTick.Ask);
-
-                if (mNtTick.Ask != mNtTick.Bid)
-                {
-                    if (mNtTick.Price >= mNtTick.Ask)
-                        BidVolumes.Swap(BidVolumes.LastValue + mNtTick.Volume);
-
-                    if (mNtTick.Price <= mNtTick.Bid)
-                        AskVolumes.Swap(AskVolumes.LastValue + mNtTick.Volume);
-                }
-                #endregion
-
-                mNtPrev = mNtTick.Time;
-            } while (mNtTick.Time.ToNativeSec() <= ctNative);
-
-            mIsCatchUp = false;
+            if (ntNative != ctNative)
+            { }
+            // When we are leaving here, NinjaTrader time is >= cTrader time
         }
 
-        public void OnStop()
+        private void UpdateNtBar(bool isNewBar)
         {
-            Close();
+            if (isNewBar)
+            {
+                InitOpenBar(mServerTick);
+                mIsInit = false;
+            }
+
+            #region Bar update
+            BidHighPrices.Swap(Math.Max(BidHighPrices.LastValue, mServerTick.Bid));
+            BidLowPrices.Swap(Math.Min(BidLowPrices.LastValue, mServerTick.Bid));
+            AskHighPrices.Swap(Math.Max(AskHighPrices.LastValue, mServerTick.Ask));
+            AskLowPrices.Swap(Math.Min(AskLowPrices.LastValue, mServerTick.Ask));
+
+            BidClosePrices.Swap(mServerTick.Bid);
+            AskClosePrices.Swap(mServerTick.Ask);
+
+            if (mServerTick.Ask != mServerTick.Bid)
+            {
+                if (mServerTick.Price >= mServerTick.Ask)
+                    AskVolumes.Swap(AskVolumes.LastValue + mServerTick.Volume);
+
+                if (mServerTick.Price <= mServerTick.Bid)
+                    BidVolumes.Swap(BidVolumes.LastValue + mServerTick.Volume);
+            }
+            #endregion
         }
 
         private void InitOpenBar(TickserverMarketDataArgs args)
@@ -171,6 +167,11 @@ namespace cAlgo.API
 
             BidVolumes.Add(0);
             AskVolumes.Add(0);
+        }
+
+        public void OnStop()
+        {
+            Close();
         }
 
         private DateTime GetBarEntryTime(DateTime time)

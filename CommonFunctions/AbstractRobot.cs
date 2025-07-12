@@ -1491,7 +1491,7 @@ namespace RobotLib
 #if CTRADER
             var tfSecs = Tf2Secs(timeframe);
             bars = SymbolPair.Contains(">>")
-                ? new CtQcPipeBars(tfSecs, symbolName, SymbolPair, Time)
+                ? new CtQcTickBars(tfSecs, symbolName, SymbolPair, Time)
                 : new CtOrgBars(tfSecs, symbolName, mRobot);
 
             mQcBarList.Add(bars);

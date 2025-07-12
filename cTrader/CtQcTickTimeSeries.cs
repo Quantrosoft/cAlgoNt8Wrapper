@@ -25,13 +25,13 @@ using TdsCommons;
 
 namespace cAlgo.API
 {
-    public class CtQcPipeTimeSeries : IQcTimeSeries
+    public class CtQcTickTimeSeries : IQcTimeSeries
     {
         private Ringbuffer<DateTime> mQcData;
 
-        public CtQcPipeTimeSeries()
+        public CtQcTickTimeSeries()
         {
-            mQcData = new Ringbuffer<DateTime>(CtQcPipeBars.QcBarsSize);
+            mQcData = new Ringbuffer<DateTime>(CtQcTickBars.QcBarsSize);
         }
 
         //     Returns the DateTime value at the specified index.
