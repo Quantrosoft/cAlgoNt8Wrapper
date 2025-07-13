@@ -126,11 +126,6 @@ namespace cAlgo.API
                 } while (mSecondBar.TimeOpen >= CoFu.TimeInvalid && mSecondBar.TimeOpen.ToNativeSec() < fromNative);
         }
 
-        public void OnStop()
-        {
-            Close();
-        }
-
         private void InitOpenBar()
         {
             // init open stuff
@@ -161,7 +156,7 @@ namespace cAlgo.API
 
             if (mStreamReader.EndOfStream)
             {
-                Close();
+                OnStop();
                 mIsNewDay = true;
                 return; // end of file
             }
@@ -211,7 +206,7 @@ namespace cAlgo.API
             mStreamReader = new StreamReader(csvEntry.Open());
         }
 
-        private void Close()
+        public void OnStop()
         {
             if (mStreamReader != null)
             {

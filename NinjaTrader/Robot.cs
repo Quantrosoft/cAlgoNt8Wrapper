@@ -48,7 +48,7 @@ namespace cAlgo.API
     {
         #region Members
         [XmlIgnore] public Symbol Symbol;
-        // Bars are now in AbstractRobot.cs as IQcBars QcBars
+        // Bars are in AbstractRobot.cs as IQcBars QcBars
         // because they are needed by both platforms now
         [XmlIgnore] public Symbols Symbols;
         [XmlIgnore] public new Account Account;

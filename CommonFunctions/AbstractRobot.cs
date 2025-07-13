@@ -355,7 +355,8 @@ namespace RobotLib
 
         private string[] mHeaderSplit;
         private DataRateId mDataRateId;
-        private List<IQcBars> mQcBarList = new List<IQcBars>();
+        private Dictionary<string, TickServerReader<TickserverMarketDataArgs>> TickServerDictionary
+            = new Dictionary<string, TickServerReader<TickserverMarketDataArgs>>();
 
         public double LotPoint(Symbol symbol)
         {
@@ -542,9 +543,9 @@ namespace RobotLib
                     else
                         mDataRateId = DataRateId.Timeframe;
 
-            // On each new second, update all QcBars
-            foreach (var qcBar in mQcBarList)
-                qcBar.OnTick(Time, PrevTime);
+            // Update all tick server readers
+            foreach (var tickServerReader in TickServerDictionary.Values)
+                tickServerReader.OnTick(Time, PrevTime);
 
             UpdateProfit();
         }
@@ -631,9 +632,8 @@ namespace RobotLib
 
         public void OnStop()
         {
-            // On each new second, update all QcBars
-            foreach (var qcBar in mQcBarList)
-                qcBar.OnStop();
+            foreach (var tickServerReader in TickServerDictionary.Values)
+                tickServerReader.Dispose();
         }
 
         public void UpdateProfit()
@@ -1490,11 +1490,18 @@ namespace RobotLib
             IQcBars bars = null;
 #if CTRADER
             var tfSecs = Tf2Secs(timeframe);
-            bars = SymbolPair.Contains(">>")
-                ? new CtQcTickBars(tfSecs, symbolName, SymbolPair, Time)
-                : new CtOrgBars(tfSecs, symbolName, mRobot);
-
-            mQcBarList.Add(bars);
+            if (SymbolPair.Contains(">>"))
+            {
+                var tickServerReader = TickServerDictionary.GetValueOrDefault(SymbolPair);
+                if (default == tickServerReader)
+                {
+                    tickServerReader = new TickServerReader<TickserverMarketDataArgs>(SymbolPair);
+                    TickServerDictionary.Add(SymbolPair, tickServerReader);
+                }
+                bars = new CtQcTickBars(tfSecs, symbolName, SymbolPair, Time, tickServerReader);
+            }
+            else
+                bars = new CtOrgBars(tfSecs, symbolName, mRobot);
 #else
             var barsSeconds = Tf2Secs(timeframe);
             if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))

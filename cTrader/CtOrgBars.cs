@@ -78,10 +78,7 @@ namespace TdsCommons
             IsNewBar = CoFu.IsNewBar(TimeFrameSeconds, fromTime, prevTime);
         }
 
-        public void OnStop()
-        {
-            // No specific stop actions needed for cTrader bars 
-        }
+        public void OnStop() { }
     }
 }
 #endif
