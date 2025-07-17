@@ -21,8 +21,10 @@ SOFTWARE.
 */
 
 using NinjaTrader.Cbi;
+using RobotLib;
 using System;
 using System.Collections.Generic;
+using TdsCommons;
 
 namespace cAlgo.API
 {
@@ -32,13 +34,13 @@ namespace cAlgo.API
     public class Position
     {
         public Order NinjaOrder;
-        private Robot mRobot;
+        private AbstractRobot mAbstractRobot;
         private double mLastGrossProfit;
         private double mLastNetProfit;
 
-        public Position(Robot robot, Order order)
+        public Position(AbstractRobot robot, Order order)
         {
-            mRobot = robot;
+            mAbstractRobot = robot;
             NinjaOrder = order;
         }
 
@@ -84,21 +86,29 @@ namespace cAlgo.API
         {
             get
             {
-                if (mRobot.Position.MarketPosition == MarketPosition.Flat)
+                if (mAbstractRobot.mRobot.Position.MarketPosition == MarketPosition.Flat)
                 {
-                    if (null != mRobot.Position)
+                    if (null != mAbstractRobot.mRobot.Position)
                         return mLastGrossProfit;
+                    return 0;
                 }
                 else
-                    return mLastGrossProfit = mRobot.Position.GetUnrealizedProfitLoss(
+                {
+                    //var gross = Math.Round(CoFu.DiffLong(NinjaOrder.IsLong, CurrentPrice, trueOpenPrice)
+                    //    * VolumeInUnits * Symbol.TickValue / Symbol.TickSize, Symbol.Digits);
+                    //return mLastGrossProfit = gross;
+
+                    //var (gross, net) = AbstractRobot.GetProfitsFromLabel(this);
+
+                    return mLastGrossProfit = mAbstractRobot.mRobot.Position.GetUnrealizedProfitLoss(
                         PerformanceUnit.Currency,
                         NinjaOrder.IsLong
                             ? Symbol.Bid
                             : Symbol.Ask);
-
-                return 0;
+                }
             }
         }
+
         //
         // Summary:
         //     The Net profit of the position.
@@ -106,21 +116,17 @@ namespace cAlgo.API
         {
             get
             {
-                if (mRobot.Position.MarketPosition == MarketPosition.Flat)
+                if (mAbstractRobot.mRobot.Position.MarketPosition == MarketPosition.Flat)
                 {
-                    if (null != mRobot.Position)
+                    if (null != mAbstractRobot.mRobot.Position)
                         return mLastNetProfit;
+                    return 0;
                 }
                 else
-                    return mLastNetProfit = mRobot.Position.GetUnrealizedProfitLoss(
-                        PerformanceUnit.Currency,
-                        NinjaOrder.IsLong
-                            ? Symbol.Bid
-                            : Symbol.Ask);
-
-                return 0;
+                    return mLastNetProfit = GrossProfit + Commissions + Swap;
             }
         }
+
         //
         // Summary:
         //     Swap is the overnight interest rate if any, accrued on the position.
@@ -192,7 +198,7 @@ namespace cAlgo.API
         //
         // Summary:
         //     Gets the position symbol.
-        public Symbol Symbol => mRobot.Symbols.GetSymbol(SymbolName);
+        public Symbol Symbol => mAbstractRobot.mRobot.Symbols.GetSymbol(SymbolName);
 
         //
         // Summary:
@@ -217,18 +223,18 @@ namespace cAlgo.API
         //     Shortcut for the Robot.ModifyPosition method to change the Stop Loss pips
         //
         // Parameters:
-        //   stopLossPips:
+        //   stopLossPrice:
         //     New Stop Loss in Pips
-        //TradeResult ModifyStopLossPips(double? stopLossPips);
+        //TradeResult ModifyStopLossPips(double? stopLossPrice);
 
         //
         // Summary:
         //     Shortcut for the Robot.ModifyPosition method to change the Take Profit pips
         //
         // Parameters:
-        //   takeProfitPips:
+        //   takeProfitPrice:
         //     New Take Profit in Pips
-        //TradeResult ModifyTakeProfitPips(double? takeProfitPips);
+        //TradeResult ModifyTakeProfitPips(double? takeProfitPrice);
 
         //
         // Summary:
@@ -277,7 +283,7 @@ namespace cAlgo.API
         //     Shortcut for the Robot.ClosePosition method.
         public TradeResult Close()
         {
-            return mRobot.ClosePosition(this);
+            return mAbstractRobot.mRobot.ClosePosition(this);
         }
     }
 }

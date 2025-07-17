@@ -50,7 +50,6 @@ namespace cAlgo.API
         private string mSymbolPair;
         TickserverMarketDataArgs mServerTick;
         private long mPeriodTicks;
-        private long mNtPrev;
         private bool mIsNewServerBar;
         #endregion
 
@@ -80,10 +79,10 @@ namespace cAlgo.API
             mPeriodTicks = TimeFrameSeconds * TimeSpan.TicksPerSecond;
         }
 
-        public void OnTick(DateTime time, DateTime _)
+        public void OnTick(DateTime ntTime, DateTime ntPrevTime)
         {
-            var ntNative = time.ToNativeSec();
-            UpdateNtBar(0 == mNtPrev || CoFu.IsNewBar(TimeFrameSeconds, ntNative, mNtPrev));
+            UpdateNtBar(ntPrevTime <= CoFu.TimeInvalid 
+                || CoFu.IsNewBar(TimeFrameSeconds, ntTime, ntPrevTime));
         }
 
         public void OnStop() 

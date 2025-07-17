@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using TdsCommons;
 using static TdsDefs;
 
@@ -341,8 +342,8 @@ namespace RobotLib
         public TimeSpan OpenDurationSum = new TimeSpan(0);
         public TimeSpan AvgOpenDuration = new TimeSpan(0);
         public TimeSpan MaxOpenDuration = new TimeSpan(0);
+        public Robot mRobot;
 
-        protected Robot mRobot;
         protected ILogger mLogger;
         protected bool mValidateTickData, mIsInit, mIsSwapLongInit, mIsSwapShortInit, mIsCommissionsInit, mIs1stTick = true;
         protected int mLoggingTradeCount;
@@ -439,7 +440,7 @@ namespace RobotLib
 
         public int SpreadInPoints(Symbol symbol)
         {
-            return iPrice(symbol.Ask - symbol.Bid, symbol.Digits);
+            return iPrice(symbol.Ask - symbol.Bid, symbol);
         }
 
         public bool Is1stTick => mIs1stTick;
@@ -513,7 +514,7 @@ namespace RobotLib
             var netProfit = 0.0;
 #if CTRADER && SELF_ACCOUNTING
             var grossProfit = 0.0;
-            (grossProfit, netProfit) = GetNetProfitFromLabel(args.Position);
+            (grossProfit, netProfit) = GetProfitsFromLabel(args.Position);
 #endif
 #if !CTRADER || PLATFORM_ACCOUNTING
             netProfit = args.Position.NetProfit;
@@ -642,7 +643,7 @@ namespace RobotLib
             var netProfit = 0.0;
             foreach (var pos in mRobot.Positions)
             {
-                (grossProfit, netProfit) = GetNetProfitFromLabel(pos);
+                (grossProfit, netProfit) = GetProfitsFromLabel(pos);
                 AccountEquity = AccountBalance + netProfit;
             }
 
@@ -706,7 +707,7 @@ namespace RobotLib
            ProfitMode profitMode,
            double value,
            int tpPts,
-           int riskPoints,
+           int riskTicks,
            out double desiMon,
            out double volumeLotSize,
            double lotsProContract = 1)
@@ -721,41 +722,41 @@ namespace RobotLib
             {
 #if CTRADER
                 case ProfitMode.Lots:
-                desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize = value);
+                desiMon = CalcTicksAndLot2Money(symbol, tpPts, volumeLotSize = value);
                 break;
 
                 case ProfitMode.Volume:
-                desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value);
+                desiMon = CalcTicksAndVolume2Money(symbol, tpPts, volumeLotSize = value);
                 break;
 
                 case ProfitMode.Contracts:
-                desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value * lotsProContract);
+                desiMon = CalcTicksAndVolume2Money(symbol, tpPts, volumeLotSize = value * lotsProContract);
                 break;
 #else
                 case ProfitMode.Lots:
-                desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize = value / lotsProContract);
+                desiMon = CalcTicksAndLot2Money(symbol, tpPts, volumeLotSize = value / lotsProContract);
                 break;
 
                 case ProfitMode.Volume:
-                desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value / lotsProContract);
+                desiMon = CalcTicksAndVolume2Money(symbol, tpPts, volumeLotSize = value / lotsProContract);
                 break;
 
                 case ProfitMode.Contracts:
-                desiMon = CalcPointsAndVolume2Money(symbol, tpPts, volumeLotSize = value);
+                desiMon = CalcTicksAndVolume2Money(symbol, tpPts, volumeLotSize = value);
                 break;
 #endif
                 //case ProfitMode.LotsPro10k:
                 //volumeLotSize = (AbstractRobot.Account.Balance - AbstractRobot.Account.Margin) / 10000 * value;
-                //desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
+                //desiMon = CalcTicksAndLot2Money(symbol, tpPts, volumeLotSize);
                 //break;
 
                 //case ProfitMode.ProfitPercent:
                 //desiMon = (AbstractRobot.Account.Balance - AbstractRobot.Account.Margin) * value / 100;
-                //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon, tpPts, CommissionPerLot(symbol));
+                //volumeLotSize = CalcMoneyAndTicks2Lots(symbol, desiMon, tpPts, CommissionPerLot(symbol));
                 //break;
 
                 //case ProfitMode.ProfitAmmount:
-                //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, desiMon = value, tpPts, CommissionPerLot(symbol));
+                //volumeLotSize = CalcMoneyAndTicks2Lots(symbol, desiMon = value, tpPts, CommissionPerLot(symbol));
                 //break;
 
                 //case ProfitMode.RiskConstant:
@@ -764,8 +765,8 @@ namespace RobotLib
                 //   ? AbstractRobot.Account.Balance
                 //   : StartBalance;
                 //double moneyToRisk = (balance - AbstractRobot.Account.Margin) * value / 100;
-                //volumeLotSize = CalcMoneyAndPoints2Lots(symbol, moneyToRisk, riskPoints, CommissionPerLot(symbol));
-                //desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
+                //volumeLotSize = CalcMoneyAndTicks2Lots(symbol, moneyToRisk, riskTicks, CommissionPerLot(symbol));
+                //desiMon = CalcTicksAndLot2Money(symbol, tpPts, volumeLotSize);
                 //break;
 
                 case ProfitMode.ConstantInvest:
@@ -775,7 +776,7 @@ namespace RobotLib
                    : mRobot.Account.Balance) * value / 100;
                 var units = investMoney * symbol.TickSize / symbol.TickValue / symbol.Bid;
                 volumeLotSize = symbol.VolumeInUnitsToQuantity(units);
-                desiMon = CalcPointsAndLot2Money(symbol, tpPts, volumeLotSize);
+                desiMon = CalcTicksAndLot2Money(symbol, tpPts, volumeLotSize);
                 break;
             }
             return "";
@@ -786,7 +787,7 @@ namespace RobotLib
            ProfitMode profitMode,
            double value,
            int tpPts,
-           int riskPoints,
+           int riskTicks,
            out double desiMon,
            out double normalizedVolume)
         {
@@ -794,7 +795,7 @@ namespace RobotLib
                 profitMode,
                 value,
                 tpPts,
-                riskPoints,
+                riskTicks,
                 out desiMon,
                 out double rawVolume);
 
@@ -806,44 +807,44 @@ namespace RobotLib
             return retVal;
         }
 
-        public double CalcPointsAndLot2Money(Symbol symbol, int points, double lot)
+        public double CalcTicksAndLot2Money(Symbol symbol, int ticks, double lot)
         {
-            return symbol.TickValue * points * symbol.LotSize * lot;
+            return symbol.TickValue * ticks * symbol.LotSize * lot;
         }
 
-        public double CalcPointsAndVolume2Money(Symbol symbol, int points, double volume)
+        public double CalcTicksAndVolume2Money(Symbol symbol, int ticks, double volume)
         {
-            return symbol.TickValue * points * volume;
+            return symbol.TickValue * ticks * volume;
         }
 
-        public double CalcPointsAndContract2Money(Symbol symbol, int points, double volume)
+        public double CalcTicksAndContract2Money(Symbol symbol, int ticks, double volume)
         {
-            return symbol.TickValue * points * volume;
+            return symbol.TickValue * ticks * volume;
         }
 
-        public double Calc1PointAnd1Lot2Money(Symbol symbol, bool reverse = false)
+        public double Calc1TickAnd1Lot2Money(Symbol symbol, bool reverse = false)
         {
-            var retVal = CalcPointsAndLot2Money(symbol, 1, 1);
+            var retVal = CalcTicksAndLot2Money(symbol, 1, 1);
             if (reverse)
                 retVal *= symbol.Bid;
             return retVal;
         }
 
-        public int CalcMoneyAndLot2Points(Symbol symbol, double money, double lot)
+        public int CalcMoneyAndLot2Ticks(Symbol symbol, double money, double lot)
         {
             return (int)(0.5 + money / (lot * symbol.TickValue * symbol.LotSize));
         }
 
-        public int CalcMoneyAndVolume2Points(Symbol symbol, double money, double volume)
+        public int CalcMoneyAndVolume2Ticks(Symbol symbol, double money, double volume)
         {
             return (int)(0.5 + money / (volume * symbol.TickValue));
         }
 
         // https://ctrader.com/api/reference/internals/symbol/tickvalue
         // var normalizedVolume = ((Account.Balance*Risk)/StopLoss)/SymbolName.PointValue;
-        public double CalcMoneyAndPoints2Lots(Symbol symbol, double money, int points, double xProLot)
+        public double CalcMoneyAndTicks2Lots(Symbol symbol, double money, int ticks, double xProLot)
         {
-            double retVal = Math.Abs(money / (points * symbol.TickValue * symbol.LotSize + xProLot));
+            double retVal = Math.Abs(money / (ticks * symbol.TickValue * symbol.LotSize + xProLot));
             retVal = Math.Max(retVal, MinLot(symbol));
             retVal = Math.Min(retVal, MaxLot(symbol));
             return retVal;
@@ -875,28 +876,25 @@ namespace RobotLib
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
 
-#if CTRADER
-            var pointFactor = Math.Pow(10, mRobot.Symbol.Digits);
-            var pointValue = mRobot.Symbol.TickValue * pointFactor; // TickValue is in USD per 1 Point
-            var platform = "Lot";
-#else
-            // public double TickValue => AbstractRobot.Instrument.MasterInstrument.TickSize
-            // * AbstractRobot.Instrument.MasterInstrument.PointValue;
-            var pointValue = mRobot.Symbol.TickValue / mRobot.Symbol.TickSize;
-            var platform = "Contract";
-#endif
-            mRobot.Chart.DrawStaticText(
-               "Comment2",
+            var platform = IsCtrader ? "Lot" : "Contract";
+            mRobot.Chart.DrawStaticText("Comment2",
                "\n" + cCommentTab + $"PointValue/{platform}: "
-               + ConvertUtils.DoubleToString(pointValue, 2) + sCurrency
-               + ", TickSize: " + ConvertUtils.DoubleToString(mRobot.Symbol.TickSize, mRobot.Symbol.Digits)
+                        + ConvertUtils.DoubleToString(mRobot.Symbol.TickValue / mRobot.Symbol.TickSize * mRobot.Symbol.LotSize, 2) + sCurrency
                + ", Digits: " + mRobot.Symbol.Digits,
                VerticalAlignment.Top,
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
 
+            mRobot.Chart.DrawStaticText("Comment2.5",
+                "\n\n" + cCommentTab + $"TickValue/{platform}: " + ConvertUtils.DoubleToString(
+                    mRobot.Symbol.TickValue * mRobot.Symbol.LotSize, 2) + sCurrency
+                + ", TickSize: " + ConvertUtils.DoubleToString(mRobot.Symbol.TickSize, mRobot.Symbol.Digits),
+               VerticalAlignment.Top,
+               HorizontalAlignment.Left,
+               mRobot.Chart.ColorSettings.ForegroundColor);
+
             mRobot.Chart.DrawStaticText("Comment3",
-               "\n\n" + cCommentTab + "Spread: " + ConvertUtils.IntegerToString(SpreadInPoints(mRobot.Symbol))
+               "\n\n\n" + cCommentTab + "Spread: " + ConvertUtils.IntegerToString(SpreadInPoints(mRobot.Symbol))
                + (-1 == avgSpreadPts ? "" : (", AvgSpread: " + ConvertUtils.IntegerToString(avgSpreadPts)))
 #if CTRADER
                + ", MaxLot: " + ConvertUtils.DoubleToString(mRobot.Symbol.VolumeInUnitsToQuantity(mRobot.Symbol.VolumeInUnitsMax), 2)
@@ -908,7 +906,7 @@ namespace RobotLib
 #if CTRADER
             mRobot.Chart.DrawStaticText(
                "Comment4",
-               "\n\n\n" + cCommentTab + "Account-Leverage: 1:" + ConvertUtils.DoubleToString(mRobot.Account.PreciseLeverage, 0)
+               "\n\n\n\n" + cCommentTab + "Account-Leverage: 1:" + ConvertUtils.DoubleToString(mRobot.Account.PreciseLeverage, 0)
                //+ ", " + mAbstractRobot.SymbolName.Name + "-Leverage: " + sSymLev,  // cTrader does not have SymbolName-Leverages
                , VerticalAlignment.Top,
                HorizontalAlignment.Left,
@@ -916,14 +914,14 @@ namespace RobotLib
 
             mRobot.Chart.DrawStaticText(
                "Comment5",
-               "\n\n\n\n" + cCommentTab + "Commission/Lot: " + sCommission,
+               "\n\n\n\n\n" + cCommentTab + "Commission/Lot: " + sCommission,
                VerticalAlignment.Top,
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
 
             mRobot.Chart.DrawStaticText(
                "Comment6",
-               "\n\n\n\n\n" + cCommentTab + "SwapLong/Lot: " + sSwapLong + ", SwapShort/Lot: " + sSwapShort,
+               "\n\n\n\n\n\n" + cCommentTab + "SwapLong/Lot: " + sSwapLong + ", SwapShort/Lot: " + sSwapShort,
                VerticalAlignment.Top,
                HorizontalAlignment.Left,
                mRobot.Chart.ColorSettings.ForegroundColor);
@@ -943,7 +941,7 @@ namespace RobotLib
 
                 mRobot.Chart.DrawStaticText(
                    "Comment8" + ConvertUtils.IntegerToString(i),
-                   "\n\n\n\n\n\n\n" + line,
+                   "\n\n\n\n\n\n\n\n" + line,
                    VerticalAlignment.Top,
                    HorizontalAlignment.Left,
                    mRobot.Chart.ColorSettings.ForegroundColor);
@@ -958,8 +956,8 @@ namespace RobotLib
             // orgComment;123456,aaa,+-ppp,yyy     meaning:
             // openAskInPts,openSpreadInPts,openPrevBidOrAskDiff
             return firstPart
-               + ";" + ConvertUtils.IntegerToString(iPrice(symbol.Ask, symbol.Digits))
-               + "," + ConvertUtils.IntegerToString(iPrice((symbol.Ask - symbol.Bid), symbol.Digits));
+               + ";" + ConvertUtils.IntegerToString(iPrice(symbol.Ask, symbol))
+               + "," + ConvertUtils.IntegerToString(iPrice((symbol.Ask - symbol.Bid), symbol));
         }
 
         public virtual void OpenLogfile(ILogger logger,
@@ -1006,7 +1004,7 @@ namespace RobotLib
                    + ",Swap/Lot"                                            // 7. swap per lot
                    + ",OpenAsk"                                             // 8. open ask
                    + ",OpenBid"                                             // 9. open bid
-                   + ",OpenSpreadPts"                                       // 10. Spread in points at open
+                   + ",OpenSpreadPts"                                       // 10. Spread in ticks at open
                 );
                 logHeader += (0 != (mLogger.Mode & LogFlags.OneLine) ? "," : ",\n");
 
@@ -1019,7 +1017,7 @@ namespace RobotLib
                    + ",Comm/Lot"                                            // 7. commission per lot
                    + ",CloseAsk"                                            // 8. close ask
                    + ",CloseBid"                                            // 9. close bid
-                   + ",CloseSpreadPts"                                      // 10. Spread in points at close
+                   + ",CloseSpreadPts"                                      // 10. Spread in ticks at close
                 );
                 logHeader += (0 != (mLogger.Mode & LogFlags.OneLine) ? "," : ",\n");
 
@@ -1081,7 +1079,7 @@ namespace RobotLib
 
             double priceDiff = (TradeType.Buy == lp.TradeType ? 1 : -1)
                * (lp.ClosingPrice - lp.EntryPrice);
-            int pointDiff = iPrice(priceDiff, lp.Symbol.Digits);
+            int pointDiff = iPrice(priceDiff, lp.Symbol);
             var lotDigits = (int)(0.5 + Math.Log10(1 / lp.Minlots));
             mLoggingSaldo += lp.NetProfit;
 
@@ -1134,7 +1132,7 @@ namespace RobotLib
                     continue;
 
                     case "OpenSpreadPts":
-                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(iPrice((openAsk - openBid), lp.Symbol.Digits), 0));
+                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(iPrice((openAsk - openBid), lp.Symbol), 0));
                     continue;
 
                     case "CloseDate":
@@ -1152,7 +1150,7 @@ namespace RobotLib
                     continue;
 
                     case "PointValue":
-                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(Calc1PointAnd1Lot2Money(lp.Symbol), 5));
+                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(Calc1TickAnd1Lot2Money(lp.Symbol), 5));
                     continue;
 
                     case "ClosePrice":
@@ -1177,7 +1175,7 @@ namespace RobotLib
 
                     case "CloseSpreadPts":
                     mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(iPrice(GetBidAskPrice(lp.Symbol, BidAsk.Ask)
-                       - GetBidAskPrice(lp.Symbol, BidAsk.Bid), lp.Symbol.Digits), 0));
+                       - GetBidAskPrice(lp.Symbol, BidAsk.Bid), lp.Symbol), 0));
                     continue;
 
                     case "Saldo":
@@ -1201,7 +1199,7 @@ namespace RobotLib
                     continue;
 
                     case "DiffGross":
-                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(CalcPointsAndLot2Money(lp.Symbol, pointDiff, lp.Lots), 2));
+                    mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(CalcTicksAndLot2Money(lp.Symbol, pointDiff, lp.Lots), 2));
                     continue;
 
                     case "NetProfit":
@@ -1384,19 +1382,29 @@ namespace RobotLib
 #endif
         }
 
-        public uint UiPrice(double dPrice, int digits)
+        public uint UiPrice(double dPrice, Symbol symbol)
         {
-            return (uint)(0.5 + dPrice * Math.Pow(10, digits));
+            return (uint)(0.5 + dPrice * Math.Pow(10, symbol.Digits));
         }
 
-        public int iPrice(double dPrice, int digits)
+        public int iPrice(double dPrice, Symbol symbol)
         {
-            return (int)(Math.Sign(dPrice) * (0.5 + Math.Abs(dPrice) * Math.Pow(10, digits)));
+            return (int)(Math.Sign(dPrice) * (0.5 + Math.Abs(dPrice) * Math.Pow(10, symbol.Digits)));
         }
 
-        public double dPrice(uint uiPrice, double tickSize)
+        public double dPrice(uint uiPrice, Symbol symbol)
         {
-            return tickSize * uiPrice;
+            return symbol.TickSize * uiPrice;
+        }
+
+        public int iTicks(double price, Symbol symbol)
+        {
+            return (int)(0.5 + price / symbol.TickSize);
+        }
+
+        public double dPips(double price, Symbol symbol)
+        {
+            return price / symbol.PipSize;
         }
 
         public double MathSign(double value)
@@ -1418,7 +1426,9 @@ namespace RobotLib
             TradeDirections allowedDirection,
             string commentVersion,
             string label,
-            double volume)
+            double volume,
+            double stopLossPrice,
+            double takeProfitPrice)
         {
             if ((tradeType == TradeType.Buy && (allowedDirection == TradeDirections.FromConfigFiles
                   || allowedDirection == TradeDirections.Long))
@@ -1427,9 +1437,31 @@ namespace RobotLib
             {
                 var orderComment = MakeLogComment(symbol, commentVersion);
                 volume = symbol.NormalizeVolumeInUnits(volume);
-                var result = mRobot.ExecuteMarketOrder(tradeType, symbol.Name, volume, label, 0, 0, orderComment);
+
+                var result = mRobot.ExecuteMarketOrder(tradeType,
+                    symbol.Name,
+                    volume,
+                    label,
+                    IsCtrader ? null : stopLossPrice,
+                    IsCtrader ? null : takeProfitPrice,
+                    orderComment);
+
                 if (result.IsSuccessful)
+                {
+                    // cTrader wants to have to set SL and TP AFTER market order is placed
+                    // NinjaTrader wants this BEFORE market order is placed
+                    // For NinjaTrader this is done in ExecuteMarketOrder
+                    // Cannot be set in ExecuteMarketOrder() since only Pips are allowed there
+                    if (IsCtrader && (stopLossPrice != 0 || takeProfitPrice != 0))
+                    {
+                        var modResult = mRobot.ModifyPosition(result.Position,
+                            stopLossPrice,
+                            takeProfitPrice,
+                            ProtectionType.Absolute);
+                    }
+
                     return result.Position;
+                }
             }
             return null;
         }
@@ -1441,29 +1473,33 @@ namespace RobotLib
             string commentVersion,
             string label,
             double volume,
-            double targetPrice)
+            double targetPrice,
+            double stopLossPrice,
+            double takeProfitPrice)
         {
             if ((tradeType == TradeType.Buy && (allowedDirection == TradeDirections.FromConfigFiles
                   || allowedDirection == TradeDirections.Long))
                || (tradeType == TradeType.Sell && (allowedDirection == TradeDirections.FromConfigFiles
                   || allowedDirection == TradeDirections.Short)))
             {
-                var orderComment = MakeLogComment(symbol, commentVersion);
                 volume = symbol.NormalizeVolumeInUnits(volume);
+                var orderComment = MakeLogComment(symbol, commentVersion);
+
                 var result = mRobot.PlaceLimitOrder(tradeType,
                     symbol.Name,
                     volume,
                     targetPrice,
                     label,
-                    0,
-                    0,
-                    ProtectionType.None,
+                    stopLossPrice,
+                    takeProfitPrice,
+                    ProtectionType.Absolute,
                     null,
                     orderComment);
 
                 if (result.IsSuccessful)
                     return result.Position;
             }
+
             return null;
         }
 
@@ -1501,7 +1537,7 @@ namespace RobotLib
                 bars = new CtQcTickBars(tfSecs, symbolName, SymbolPair, Time, tickServerReader);
             }
             else
-                bars = new CtOrgBars(tfSecs, symbolName, mRobot);
+                bars = new CtOrgBars(tfSecs, symbolName, this);
 #else
             var barsSeconds = Tf2Secs(timeframe);
             if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))
@@ -1516,7 +1552,7 @@ namespace RobotLib
             return bars;
         }
 
-        static public (double, double) GetNetProfitFromLabel(Position position)
+        static public (double, double) GetProfitsFromLabel(Position position)
         {
             var trueOpenPrice = double.Parse(position.Label.Split(',')[0], CultureInfo.InvariantCulture);
             var grossProfit = Math.Round(CoFu.DiffLong(TradeType.Buy == position.TradeType,

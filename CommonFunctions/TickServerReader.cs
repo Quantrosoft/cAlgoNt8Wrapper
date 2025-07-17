@@ -36,7 +36,7 @@ namespace TdsCommons
         private readonly BinaryReader mReader;
         private byte[] mPeekBuffer;
         private bool mIsInit;
-        private long mNtPrev;
+        private DateTime mNtPrev;
         private List<BarOnTickDelegate> mRegisteredBars;
 
         public TickServerReader(string pipeName)
@@ -73,17 +73,16 @@ namespace TdsCommons
 
                 dynamic dynTick = serverTick;
                 ntNative = ((DateTime)dynTick.Time).ToNativeSec();
-                //var isNewServerBar = CoFu.IsNewBar(TimeFrameSeconds, ntNative, mNtPrev);
-                //mIsNewServerBar = isNewServerBar && ntNative == ctNative;
 
                 // When NT is ahead of cTrader, do not consume the NT tick but return
                 if (ntNative > ctNative)
                     break;
 
                 TryDequeue(out serverTick);
-                //UpdateNtBar(mIsInit || isNewServerBar); call bar update method here
+                foreach (var bar in mRegisteredBars)
+                    bar.Invoke((DateTime)dynTick.Time, mNtPrev);
 
-                mNtPrev = ntNative;
+                mNtPrev = (DateTime)dynTick.Time;
             } while (ntNative < ctNative);  // loop til NinjaTrader time is >= cTrader time
         }
 

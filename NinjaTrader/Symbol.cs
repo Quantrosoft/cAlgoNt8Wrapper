@@ -63,10 +63,13 @@ namespace cAlgo.API
             {
                 if (mRobot.IsTickReplay)
                     return mRobot.MarketDataEventArgs.Ask;
+                //return mRobot.GetCurrentAsk();
                 else
                     return mRobot.Opens[1][0];
             }
         }
+
+        public double Spread => Ask - Bid;
 
         public long MarketDataVolume
         {
@@ -94,16 +97,19 @@ namespace cAlgo.API
 
         public double TickSize => mRobot.Instrument.MasterInstrument.TickSize;
 
-        public double TickValue => mRobot.Instrument.MasterInstrument.TickSize
+        public double TickValue => mRobot.Instrument.MasterInstrument.PointValue
+            * mRobot.Instrument.MasterInstrument.TickSize;
+
+        public double PipSize => mRobot.Instrument.MasterInstrument.TickSize;
+
+        public double PipValue => mRobot.Instrument.MasterInstrument.TickSize
             * mRobot.Instrument.MasterInstrument.PointValue;
 
         public double LotSize
         {
             get
             {
-                return mRobot.Instrument.MasterInstrument.InstrumentType == InstrumentType.Forex
-                    ? 100000
-                    : 1.0 / 25;
+                return 1;
             }
         }
 
@@ -114,7 +120,7 @@ namespace cAlgo.API
         public double VolumeInUnitsMax => 100;
 
         public double VolumeInUnitsStep => VolumeInUnitsMin;
-        
+
         //     Convert Volume in units of base currency to Quantity (in lots).
         //
         // Parameters:

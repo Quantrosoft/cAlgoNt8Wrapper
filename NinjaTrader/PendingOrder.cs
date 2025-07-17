@@ -227,7 +227,7 @@ namespace cAlgo.API
         /// <summary>
         /// Shortcut for Robot.ModifyPendingOrder method to change Stop Loss
         /// </summary>
-        public TradeResult ModifyStopLossPips(double? stopLossPips)
+        public TradeResult ModifyStopLossPips(double? stopLossPrice)
         {
             return null;
         }
@@ -235,7 +235,7 @@ namespace cAlgo.API
         /// <summary>
         /// Shortcut for Robot.ModifyPendingOrder method to change Take Profit
         /// </summary>
-        public TradeResult ModifyTakeProfitPips(double? takeProfitPips)
+        public TradeResult ModifyTakeProfitPips(double? takeProfitPrice)
         {
             return null;
         }
