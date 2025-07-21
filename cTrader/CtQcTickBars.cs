@@ -45,23 +45,25 @@ namespace cAlgo.API
         public TimeFrame TimeFrame { get; internal set; }
         public int Count => OpenTimes.Count;
         public string SymbolName => mSymbolPair;
-        public bool IsNewBar => mIsNewServerBar;
+        public bool IsNewBar => CoFu.IsNewBar(TimeFrameSeconds, mBot.Time, mBot.PrevTime);
 
         private string mSymbolPair;
-        TickserverMarketDataArgs mServerTick;
+        private TickServerReader<TickserverMarketDataArgs> mTickServerReader;
         private long mPeriodTicks;
-        private bool mIsNewServerBar;
+        private DateTime mNtPrevTime;
+        private AbstractRobot mBot;
         #endregion
 
-        public CtQcTickBars(int barPeriodSeconds,
+        public CtQcTickBars(AbstractRobot abstractRobot,
+            int barPeriodSeconds,
             string symbolName,
             string symbolPair,
-            DateTime from,
             TickServerReader<TickserverMarketDataArgs> tickServerReader)
         {
+            mBot = abstractRobot;
             TimeFrameSeconds = barPeriodSeconds;
             mSymbolPair = symbolPair;
-            tickServerReader.RegisterBar(OnTick);
+            mTickServerReader = tickServerReader;
 
             TimeFrame = AbstractRobot.Secs2Tf(barPeriodSeconds, out _);
             OpenTimes = new CtQcTickTimeSeries();
@@ -77,57 +79,60 @@ namespace cAlgo.API
             AskVolumes = new CtQcTickDataSeries();
 
             mPeriodTicks = TimeFrameSeconds * TimeSpan.TicksPerSecond;
+
+            mTickServerReader.RegisterBar(OnTick);
         }
 
-        public void OnTick(DateTime ntTime, DateTime ntPrevTime)
+        public void OnTick()
         {
-            UpdateNtBar(ntPrevTime <= CoFu.TimeInvalid 
-                || CoFu.IsNewBar(TimeFrameSeconds, ntTime, ntPrevTime));
+            UpdateNtBar();
+            mNtPrevTime = mTickServerReader.ServerTick.Time;
         }
 
-        public void OnStop() 
+        public void OnStop()
         {
-            // Nothing to do here, all done in TickServerReader
+            // Nothing to do here, all done in TickServerReader.Dispose()
         }
 
-        private void UpdateNtBar(bool isNewBar)
+        private void UpdateNtBar()
         {
-            if (isNewBar)
+            if (mNtPrevTime <= CoFu.TimeInvalid 
+                || CoFu.IsNewBar(TimeFrameSeconds, mTickServerReader.ServerTick.Time, mNtPrevTime))
             {
                 // init open stuff
-                OpenTimes.Add(GetBarEntryTime(mServerTick.Time));
+                OpenTimes.Add(GetBarEntryTime(mTickServerReader.ServerTick.Time));
 
-                BidOpenPrices.Add(mServerTick.Bid);
-                AskOpenPrices.Add(mServerTick.Ask);
+                BidOpenPrices.Add(mTickServerReader.ServerTick.Bid);
+                AskOpenPrices.Add(mTickServerReader.ServerTick.Ask);
 
-                BidHighPrices.Add(mServerTick.Bid);
-                AskHighPrices.Add(mServerTick.Ask);
-                BidLowPrices.Add(mServerTick.Bid);
-                AskLowPrices.Add(mServerTick.Ask);
+                BidHighPrices.Add(mTickServerReader.ServerTick.Bid);
+                AskHighPrices.Add(mTickServerReader.ServerTick.Ask);
+                BidLowPrices.Add(mTickServerReader.ServerTick.Bid);
+                AskLowPrices.Add(mTickServerReader.ServerTick.Ask);
 
-                BidClosePrices.Add(mServerTick.Bid);
-                AskClosePrices.Add(mServerTick.Ask);
+                BidClosePrices.Add(mTickServerReader.ServerTick.Bid);
+                AskClosePrices.Add(mTickServerReader.ServerTick.Ask);
 
                 BidVolumes.Add(0);
                 AskVolumes.Add(0);
             }
 
             #region Bar update
-            BidHighPrices.Swap(Math.Max(BidHighPrices.LastValue, mServerTick.Bid));
-            BidLowPrices.Swap(Math.Min(BidLowPrices.LastValue, mServerTick.Bid));
-            AskHighPrices.Swap(Math.Max(AskHighPrices.LastValue, mServerTick.Ask));
-            AskLowPrices.Swap(Math.Min(AskLowPrices.LastValue, mServerTick.Ask));
+            BidHighPrices.Swap(Math.Max(BidHighPrices.LastValue, mTickServerReader.ServerTick.Bid));
+            BidLowPrices.Swap(Math.Min(BidLowPrices.LastValue, mTickServerReader.ServerTick.Bid));
+            AskHighPrices.Swap(Math.Max(AskHighPrices.LastValue, mTickServerReader.ServerTick.Ask));
+            AskLowPrices.Swap(Math.Min(AskLowPrices.LastValue, mTickServerReader.ServerTick.Ask));
 
-            BidClosePrices.Swap(mServerTick.Bid);
-            AskClosePrices.Swap(mServerTick.Ask);
+            BidClosePrices.Swap(mTickServerReader.ServerTick.Bid);
+            AskClosePrices.Swap(mTickServerReader.ServerTick.Ask);
 
-            if (mServerTick.Ask != mServerTick.Bid)
+            if (mTickServerReader.ServerTick.Ask != mTickServerReader.ServerTick.Bid)
             {
-                if (mServerTick.Price >= mServerTick.Ask)
-                    AskVolumes.Swap(AskVolumes.LastValue + mServerTick.Volume);
+                if (mTickServerReader.ServerTick.Price >= mTickServerReader.ServerTick.Ask)
+                    AskVolumes.Swap(AskVolumes.LastValue + mTickServerReader.ServerTick.Volume);
 
-                if (mServerTick.Price <= mServerTick.Bid)
-                    BidVolumes.Swap(BidVolumes.LastValue + mServerTick.Volume);
+                if (mTickServerReader.ServerTick.Price <= mTickServerReader.ServerTick.Bid)
+                    BidVolumes.Swap(BidVolumes.LastValue + mTickServerReader.ServerTick.Volume);
             }
             #endregion
         }

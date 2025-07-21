@@ -45,7 +45,7 @@ namespace TdsCommons
         public int TimeFrameSeconds { get; }
         public string SymbolName { get; }
         public bool IsNewBar { get; }
-        void OnTick(DateTime fromTime, DateTime prevTime);
+        void OnTick();
         void OnStop();
     }
 }

@@ -32,7 +32,6 @@ namespace TdsCommons
 {
     public class TickServerWriter<T> : IDisposable where T : struct
     {
-        private readonly int mCapacity;
         private readonly string mPipeName;
         private readonly SemaphoreSlim mSlotSemaphore;
         private readonly SemaphoreSlim mItemSemaphore;
@@ -45,7 +44,6 @@ namespace TdsCommons
         public TickServerWriter(int capacity, string pipeName)
         {
             mPipeName = pipeName.Replace(">>", "");
-            mCapacity = capacity;
             mSlotSemaphore = new SemaphoreSlim(capacity, capacity);
             mItemSemaphore = new SemaphoreSlim(0, capacity);
             mQueue = new ConcurrentQueue<T>();
@@ -54,7 +52,9 @@ namespace TdsCommons
             {
                 mWriterTask = WriterLoopAsync(mCts.Token);
                 try
-                { mWriterTask.Wait(); }
+                {
+                    mWriterTask.Wait();
+                }
                 catch { }
             })
             {

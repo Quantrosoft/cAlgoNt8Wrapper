@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+using RobotLib;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,18 +31,20 @@ namespace TdsCommons
 {
     public class TickServerReader<T> : IDisposable where T : struct
     {
-        public delegate void BarOnTickDelegate(DateTime time, DateTime _);
+        public delegate void BarOnTickDelegate();
+        public T ServerTick;
+
+        private AbstractRobot mBot;
         private readonly string mPipeName;
         private readonly NamedPipeClientStream mPipe;
         private readonly BinaryReader mReader;
         private byte[] mPeekBuffer;
-        private bool mIsInit;
-        private DateTime mNtPrev;
-        private List<BarOnTickDelegate> mRegisteredBars;
+        private List<BarOnTickDelegate> mRegisteredBars = new List<BarOnTickDelegate>();
 
-        public TickServerReader(string pipeName)
+        public TickServerReader(AbstractRobot abstractRobot, string pipeName)
         {
-            mPipeName = pipeName.Replace(">>", "");
+            mBot = abstractRobot;
+            mPipeName = pipeName.Replace(">>", "").Replace(" ", "");
             mPipe = new NamedPipeClientStream(".", mPipeName, PipeDirection.In);
             try
             {
@@ -55,35 +58,35 @@ namespace TdsCommons
         }
 
         public void RegisterBar(BarOnTickDelegate onTick)
-        { 
+        {
             mRegisteredBars.Add(onTick);
+            if (!TickServerReaderOnTick())
+                throw (new Exception("NinjaTrader start date must be before cTrader start date"));
         }
 
-        public void OnTick(DateTime ctTime, DateTime ctPrevTime)
+        public bool TickServerReaderOnTick()
         {
             long ntNative;
-            var ctNative = ctTime.ToNativeSec();
+            var ctNative = mBot.Time.ToNativeSec();
             do
             {
-                if (!TryPeek(out T serverTick))
-                    return;
+                if (!TryPeek(out ServerTick))
+                    return false;
 
-                //if (mIsInit && serverTick.Time > ctTime - TimeSpan.FromSeconds(10 * TimeFrameSeconds))
-                //    throw new Exception("Set start date of NinjaTrader earlier than cTrader");
-
-                dynamic dynTick = serverTick;
-                ntNative = ((DateTime)dynTick.Time).ToNativeSec();
+                dynamic dynTick = ServerTick;
+                var ntTime = (DateTime)dynTick.Time;
+                ntNative = ntTime.ToNativeSec();
 
                 // When NT is ahead of cTrader, do not consume the NT tick but return
                 if (ntNative > ctNative)
-                    break;
+                    return false;
 
-                TryDequeue(out serverTick);
+                TryDequeue(out ServerTick);
                 foreach (var bar in mRegisteredBars)
-                    bar.Invoke((DateTime)dynTick.Time, mNtPrev);
+                    bar.Invoke();
 
-                mNtPrev = (DateTime)dynTick.Time;
             } while (ntNative < ctNative);  // loop til NinjaTrader time is >= cTrader time
+            return true;
         }
 
         public bool TryPeek(out T item)

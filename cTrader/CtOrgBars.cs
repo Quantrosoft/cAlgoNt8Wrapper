@@ -52,11 +52,11 @@ namespace TdsCommons
         private Bars mBars;
         #endregion
 
-        public CtOrgBars(int barPeriodSeconds, string symbol, AbstractRobot abstractRobot)
+        public CtOrgBars(AbstractRobot abstractRobot, int barPeriodSeconds, string symbol)
         {
+            mBot = abstractRobot;
             TimeFrameSeconds = barPeriodSeconds;
             mSymbol = symbol;
-            mBot = abstractRobot;
             mTimeFrame = AbstractRobot.Secs2Tf(barPeriodSeconds, out _);
             mBars = mBot.mRobot.MarketData.GetBars(mTimeFrame, symbol);
 
@@ -73,7 +73,7 @@ namespace TdsCommons
             AskVolumes = new CtOrgDataSeries(mBars.TickVolumes, 34);
         }
 
-        public void OnTick(DateTime fromTime, DateTime prevTime) { }
+        public void OnTick() { }
 
         public void OnStop() { }
     }

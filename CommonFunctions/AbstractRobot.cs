@@ -546,7 +546,7 @@ namespace RobotLib
 
             // Update all tick server readers
             foreach (var tickServerReader in TickServerDictionary.Values)
-                tickServerReader.OnTick(Time, PrevTime);
+                tickServerReader.TickServerReaderOnTick();
 
             UpdateProfit();
         }
@@ -1531,13 +1531,13 @@ namespace RobotLib
                 var tickServerReader = TickServerDictionary.GetValueOrDefault(SymbolPair);
                 if (default == tickServerReader)
                 {
-                    tickServerReader = new TickServerReader<TickserverMarketDataArgs>(SymbolPair);
+                    tickServerReader = new TickServerReader<TickserverMarketDataArgs>(this, SymbolPair);
                     TickServerDictionary.Add(SymbolPair, tickServerReader);
                 }
-                bars = new CtQcTickBars(tfSecs, symbolName, SymbolPair, Time, tickServerReader);
+                bars = new CtQcTickBars(this, tfSecs, symbolName, SymbolPair, tickServerReader);
             }
             else
-                bars = new CtOrgBars(tfSecs, symbolName, this);
+                bars = new CtOrgBars(this, tfSecs, symbolName);
 #else
             var barsSeconds = Tf2Secs(timeframe);
             if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))

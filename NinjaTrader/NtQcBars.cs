@@ -201,7 +201,7 @@ namespace cAlgo.API
             return BarsSeconds / SEC_PER_MINUTE;
         }
 
-        public void OnTick(DateTime fromTime, DateTime prevTime) { }
+        public void OnTick() { }
         public void Add(double value) { }
         public void Bump() { }
         public void Swap(double value) { }

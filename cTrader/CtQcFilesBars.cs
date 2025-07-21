@@ -53,6 +53,7 @@ namespace cAlgo.API
 
         private ZipArchive mZipArchive;
         private StreamReader mStreamReader;
+        private AbstractRobot mBot;
         private string mHistoricalDataPath;
         private string mSymbolPair;
         private DateTime mDay;
@@ -63,11 +64,13 @@ namespace cAlgo.API
         private DateTime mPrevTime;
         #endregion
 
-        public CtQcFilesBars(string folderPath,
+        public CtQcFilesBars(AbstractRobot abstractRobot,
+            string folderPath,
             string symbolPair,
             int barPeriodSeconds,
             DateTime from)
         {
+            mBot = abstractRobot;
             mHistoricalDataPath = Environment.ExpandEnvironmentVariables(folderPath);
             mSymbolPair = symbolPair;
             TimeFrameSeconds = barPeriodSeconds;
@@ -85,16 +88,16 @@ namespace cAlgo.API
             AskClosePrices = new CtQcFilesDataSeries();
             AskVolumes = new CtQcFilesDataSeries();
 
-            OnTick(from, from);
+            OnTick();
         }
 
-        public void OnTick(DateTime fromTime, DateTime prevTime)
+        public void OnTick()
         {
-            mFromTime = fromTime;
-            mPrevTime = prevTime;
+            mFromTime = mBot.Time;
+            mPrevTime = mBot.PrevTime;
 
-            var fromNative = fromTime.ToNativeSec();
-            if (prevTime <= CoFu.TimeInvalid || mIsNewDay || CoFu.IsNewBar(1, fromTime, prevTime))
+            var fromNative = mFromTime.ToNativeSec();
+            if (mPrevTime <= CoFu.TimeInvalid || mIsNewDay || CoFu.IsNewBar(1, mFromTime, mPrevTime))
                 do
                 {
                     if (mIsNewDay || fromNative >= mSecondBar.TimeOpen.ToNativeSec())
@@ -115,7 +118,7 @@ namespace cAlgo.API
                             mSecondBarPrevTime = mSecondBar.TimeOpen;
                         }
 
-                        ReadNextSecondBar(fromTime);
+                        ReadNextSecondBar(mFromTime);
                         if (mSecondBar.TimeOpen >= CoFu.TimeInvalid)    // Invalid TimeOpen means end of file
                         {
                             if (mIsNewDay || CoFu.IsNewBar(TimeFrameSeconds, mSecondBar.TimeOpen, mSecondBarPrevTime))
