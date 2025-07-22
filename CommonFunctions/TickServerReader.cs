@@ -40,6 +40,7 @@ namespace TdsCommons
         private readonly BinaryReader mReader;
         private byte[] mPeekBuffer;
         private List<BarOnTickDelegate> mRegisteredBars = new List<BarOnTickDelegate>();
+        private bool mIsInit = true;
 
         public TickServerReader(AbstractRobot abstractRobot, string pipeName)
         {
@@ -52,7 +53,7 @@ namespace TdsCommons
             }
             catch
             {
-                throw (new Exception("NinjaTrader is not running or Symbol Pairs are not correct. Start NinjaTrader and cTrader with correct Symbol Pairs"));
+                throw (new Exception("NinjaTrader TickServer strategy is not running or Symbol Pairs are not correct. Start NinjaTrader TickServer and cTrader Algo with correct Symbol Pairs"));
             }
             mReader = new BinaryReader(mPipe);
         }
@@ -79,7 +80,9 @@ namespace TdsCommons
 
                 // When NT is ahead of cTrader, do not consume the NT tick but return
                 if (ntNative > ctNative)
-                    return false;
+                    return !mIsInit;    // if its the 1st time, its an error
+
+                mIsInit = false;
 
                 TryDequeue(out ServerTick);
                 foreach (var bar in mRegisteredBars)
