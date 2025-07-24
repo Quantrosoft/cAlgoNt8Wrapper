@@ -24,7 +24,6 @@ using NinjaTrader.Cbi;
 using RobotLib;
 using System;
 using System.Collections.Generic;
-using TdsCommons;
 
 namespace cAlgo.API
 {
@@ -72,12 +71,14 @@ namespace cAlgo.API
         //
         // Summary:
         //     The Stop Loss level of the position.
-        public double? StopLoss;
+        // NinjaOrder.StopPrice cannot be used here sind it is NOT Stop Loss
+        // price but stop price similar to limit price
+        public double? StopLoss { get; internal set; }
 
         //
         // Summary:
         //     The take profit level of the position.
-        public double? TakeProfit;
+        public double? TakeProfit { get; internal set; }
 
         //
         // Summary:

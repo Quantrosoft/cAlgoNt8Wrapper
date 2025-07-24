@@ -526,6 +526,8 @@ namespace cAlgo.API
             Positions.Add(position);
 
             // NinjaTrader wants to have SL and TP set BEFORE EnterXxxLimit()
+            position.StopLoss = stopLossPrice;
+            position.TakeProfit = takeProfitPrice;
             if ((null != stopLossPrice && 0 != stopLossPrice)
                     || (null != takeProfitPrice && 0 != takeProfitPrice))
                 SetSlTp(isLong,
@@ -611,12 +613,27 @@ namespace cAlgo.API
             double? takeProfit,
             ProtectionType? protectionType)
         {
+            if (ProtectionType.Absolute != protectionType)
+            {
+                // Calculate absolute prices for stop loss and take profit
+            }
+
+            if (position.StopLoss == stopLoss)
+                stopLoss = null; // no change
+            else
+                position.StopLoss = stopLoss;
+
+            if (position.TakeProfit == takeProfit)
+                takeProfit = null; // no change
+            else
+                position.TakeProfit = takeProfit;
+
             return SetSlTp(position.TradeType == TradeType.Buy,
-                position.Symbol,
-                GetSignal(position.Label, position.Comment),
-                stopLoss,
-                takeProfit,
-                protectionType);
+                    position.Symbol,
+                    GetSignal(position.Label, position.Comment),
+                    stopLoss,
+                    takeProfit,
+                    protectionType);
         }
 
         public TradeResult SetSlTp(bool isLong,
@@ -630,7 +647,8 @@ namespace cAlgo.API
 
             if (null != stopLossPrice && 0 != stopLossPrice)
                 // Use simulated stop loss
-                SetStopLoss(signal, CalculationMode.Price, (double)stopLossPrice, true);
+                //SetStopLoss(signal, CalculationMode.Price, (double)stopLossPrice, true);
+                SetStopLoss(signal, CalculationMode.Price, (double)stopLossPrice, false);
 
             if (null != takeProfitPrice && 0 != takeProfitPrice)
                 SetProfitTarget(signal, CalculationMode.Price, (double)takeProfitPrice);
