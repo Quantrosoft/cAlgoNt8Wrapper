@@ -1,0 +1,208 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
+    <DefineConstants>$(DefineConstants);$(CiConstants)</DefineConstants>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+    <LangVersion>9.0</LangVersion>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <OutputType>Library</OutputType>
+    <Platforms>x64</Platforms>
+    <TargetFramework>net481</TargetFramework>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <CodeAnalysisRuleSet>ManagedMinimumRules.ruleset</CodeAnalysisRuleSet>
+    <DocumentationFile>bin\Debug\NinjaTrader.Custom.XML</DocumentationFile>
+    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
+    <NoWarn>1591</NoWarn>
+    <PlatformTarget>x64</PlatformTarget>
+    <WarningLevel>0</WarningLevel>
+    <DefineConstants>$(DefineConstants);$(CiConstants);GITHUB</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <CodeAnalysisRuleSet>ManagedMinimumRules.ruleset</CodeAnalysisRuleSet>
+    <DebugSymbols>true</DebugSymbols>
+    <DocumentationFile>bin\Release\NinjaTrader.Custom.XML</DocumentationFile>
+    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
+    <NoWarn>1591</NoWarn>
+    <PlatformTarget>x64</PlatformTarget>
+    <WarningLevel>0</WarningLevel>
+    <DefineConstants>$(DefineConstants);$(CiConstants);GITHUB</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Remove="AddOns\**" />
+    <EmbeddedResource Remove="BarsTypes\**" />
+    <EmbeddedResource Remove="ChartStyles\**" />
+    <EmbeddedResource Remove="DrawingTools\**" />
+    <EmbeddedResource Remove="ImportTypes\**" />
+    <EmbeddedResource Remove="Indicators\**" />
+    <EmbeddedResource Remove="MarketAnalyzerColumns\**" />
+    <EmbeddedResource Remove="OptimizationFitnesses\**" />
+    <EmbeddedResource Remove="Optimizers\**" />
+    <EmbeddedResource Remove="PerformanceMetrics\**" />
+    <EmbeddedResource Remove="ShareServices\**" />
+    <EmbeddedResource Remove="Strategies\**" />
+    <EmbeddedResource Remove="SuperDomColumns\**" />
+    <None Remove="AddOns\**" />
+    <None Remove="BarsTypes\**" />
+    <None Remove="ChartStyles\**" />
+    <None Remove="DrawingTools\**" />
+    <None Remove="ImportTypes\**" />
+    <None Remove="Indicators\**" />
+    <None Remove="MarketAnalyzerColumns\**" />
+    <None Remove="OptimizationFitnesses\**" />
+    <None Remove="Optimizers\**" />
+    <None Remove="PerformanceMetrics\**" />
+    <None Remove="ShareServices\**" />
+    <None Remove="Strategies\**" />
+    <None Remove="SuperDomColumns\**" />
+    <Page Remove="AddOns\**" />
+    <Page Remove="BarsTypes\**" />
+    <Page Remove="ChartStyles\**" />
+    <Page Remove="DrawingTools\**" />
+    <Page Remove="ImportTypes\**" />
+    <Page Remove="Indicators\**" />
+    <Page Remove="MarketAnalyzerColumns\**" />
+    <Page Remove="OptimizationFitnesses\**" />
+    <Page Remove="Optimizers\**" />
+    <Page Remove="PerformanceMetrics\**" />
+    <Page Remove="ShareServices\**" />
+    <Page Remove="Strategies\**" />
+    <Page Remove="SuperDomColumns\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove=".git" />
+    <None Remove=".gitattributes" />
+    <None Remove=".gitignore" />
+    <None Remove="250524 Cs Coding Conventions.txt" />
+    <None Remove="LICENSE.txt" />
+    <None Remove="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="CommonFunctions\AbstractRobot.cs" />
+    <Compile Include="CommonFunctions\CommonFunctions.cs" />
+    <Compile Include="CommonFunctions\ConvertUtils.cs" />
+    <Compile Include="CommonFunctions\CsLogger.cs" />
+    <Compile Include="CommonFunctions\CsRobot.cs" />
+    <Compile Include="CommonFunctions\CSRobotFactory.cs" />
+    <Compile Include="CommonFunctions\Extensions.cs" />
+    <Compile Include="CommonFunctions\ILogger.cs" />
+    <Compile Include="CommonFunctions\IQcBars.cs" />
+    <Compile Include="CommonFunctions\IQcDataSeries.cs" />
+    <Compile Include="CommonFunctions\IQcTimeSeries.cs" />
+    <Compile Include="CommonFunctions\IQcVolumeSeries.cs" />
+    <Compile Include="CommonFunctions\IRobotFactory.cs" />
+    <Compile Include="CommonFunctions\QcBar.cs" />
+    <Compile Include="CommonFunctions\QuantConnectBarHandling.cs" />
+    <Compile Include="CommonFunctions\RingBuffer.cs" />
+    <Compile Include="CommonFunctions\SerialArrays.cs" />
+    <Compile Include="CommonFunctions\TickserverMarketDataArgs.cs" />
+    <Compile Include="CommonFunctions\TickServerReader.cs" />
+    <Compile Include="CommonFunctions\TickServerWriter.cs" />
+    <Compile Include="CommonFunctions\TimeDefs.cs" />
+    <Compile Include="NinjaTrader\Account.cs" />
+    <Compile Include="NinjaTrader\Asset.cs" />
+    <Compile Include="NinjaTrader\Chart.cs" />
+    <Compile Include="NinjaTrader\ChartArea.cs" />
+    <Compile Include="NinjaTrader\ChartColorSettings.cs" />
+    <Compile Include="NinjaTrader\ChartHorizontalLine.cs" />
+    <Compile Include="NinjaTrader\ChartIcon.cs" />
+    <Compile Include="NinjaTrader\ChartObject.cs" />
+    <Compile Include="NinjaTrader\ChartStaticText.cs" />
+    <Compile Include="NinjaTrader\ChartText.cs" />
+    <Compile Include="NinjaTrader\ChartTrendLine.cs" />
+    <Compile Include="NinjaTrader\Color.cs" />
+    <Compile Include="NinjaTrader\Enums.cs" />
+    <Compile Include="NinjaTrader\Error.cs" />
+    <Compile Include="NinjaTrader\GetFitnessArgs.cs" />
+    <Compile Include="NinjaTrader\HistoricalTrade.cs" />
+    <Compile Include="NinjaTrader\History.cs" />
+    <Compile Include="NinjaTrader\IAccount.cs" />
+    <Compile Include="NinjaTrader\NinjaBrushConverter.cs" />
+    <Compile Include="NinjaTrader\NtQcBars.cs" />
+    <Compile Include="NinjaTrader\NtQcDataSeries.cs" />
+    <Compile Include="NinjaTrader\NtQcTimeSeries.cs" />
+    <Compile Include="NinjaTrader\NtQcVolumeSeries.cs" />
+    <Compile Include="NinjaTrader\ParameterAttribute.cs" />
+    <Compile Include="NinjaTrader\PendingOrder.cs" />
+    <Compile Include="NinjaTrader\PendingOrderCancelledEventArgs.cs" />
+    <Compile Include="NinjaTrader\PendingOrderCreatedEventArgs.cs" />
+    <Compile Include="NinjaTrader\PendingOrderFilledEventArgs.cs" />
+    <Compile Include="NinjaTrader\PendingOrderModifiedEventArgs.cs" />
+    <Compile Include="NinjaTrader\PendingOrders.cs" />
+    <Compile Include="NinjaTrader\Position.cs" />
+    <Compile Include="NinjaTrader\PositionClosedEventArgs.cs" />
+    <Compile Include="NinjaTrader\PositionModifiedEventArgs.cs" />
+    <Compile Include="NinjaTrader\PositionOpenedEventArgs.cs" />
+    <Compile Include="NinjaTrader\Positions.cs" />
+    <Compile Include="NinjaTrader\RobotStrategy.cs" />
+    <Compile Include="NinjaTrader\Symbol.cs" />
+    <Compile Include="NinjaTrader\Symbols.cs" />
+    <Compile Include="NinjaTrader\TimeFrame.cs" />
+    <Compile Include="NinjaTrader\TradeResults.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib">
+      <HintPath>C:\Windows\Microsoft.NET\Framework64\v4.0.30319\mscorlib.dll</HintPath>
+    </Reference>
+    <Reference Include="NinjaTrader.Vendor">
+      <HintPath>..\..\NinjaTrader.Vendor.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="InfragisticsWPF4.DataPresenter.v15.1">
+      <HintPath>C:\Program Files\NinjaTrader 8\bin\InfragisticsWPF4.DataPresenter.v15.1.dll</HintPath>
+    </Reference>
+    <Reference Include="Infralution.Localization.Wpf">
+      <HintPath>C:\Program Files\NinjaTrader 8\bin\Infralution.Localization.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="NinjaTrader.Core">
+      <HintPath>C:\Program Files\NinjaTrader 8\bin\NinjaTrader.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="NinjaTrader.Gui">
+      <HintPath>C:\Program Files\NinjaTrader 8\bin\NinjaTrader.Gui.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX">
+      <HintPath>C:\Program Files\NinjaTrader 8\bin\SharpDX.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct2D1">
+      <HintPath>C:\Program Files\NinjaTrader 8\bin\SharpDX.Direct2D1.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Drawing">
+      <HintPath>$(UserProfile)\Documents\NinjaTrader 8\bin\Custom\bin\Debug\System.Drawing.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IO.Compression">
+      <HintPath>C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase">
+      <HintPath>C:\Windows\Microsoft.NET\Framework\v4.0.30319\WPF\WindowsBase.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationCore">
+      <HintPath>C:\Windows\Microsoft.NET\Framework\v4.0.30319\WPF\PresentationCore.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework">
+      <HintPath>C:\Windows\Microsoft.NET\Framework\v4.0.30319\WPF\PresentationFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="UIAutomationProvider">
+      <HintPath>C:\Windows\Microsoft.NET\Framework\v4.0.30319\WPF\UIAutomationProvider.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="robocopy . &quot;$(SolutionDir)..\..\NinjaTrader 8\bin\Custom\Strategies\$(ProjectName)&quot; *.cs /NFL /NDL /NJH /NJS /NC /NS /NP &amp; exit 0&#xD;&#xA;" />
+  </Target>
+</Project>

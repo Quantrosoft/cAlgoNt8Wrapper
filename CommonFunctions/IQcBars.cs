@@ -1,0 +1,53 @@
+﻿/* MIT License
+Copyright (c) 2025 Quantrosoft Pty. Ltd.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. 
+*/
+
+#if CTRADER
+using cAlgo.API;
+#endif
+using System;
+
+namespace TdsCommons
+{
+    public interface IQcBars
+    {
+        #region Members
+        IQcTimeSeries OpenTimes { get; }
+        IQcDataSeries BidOpenPrices { get; }
+        IQcDataSeries BidHighPrices { get; }
+        IQcDataSeries BidLowPrices { get; }
+        IQcDataSeries BidClosePrices { get; }
+        IQcVolumeSeries BidVolumes { get; }
+        IQcDataSeries AskOpenPrices { get; }
+        IQcDataSeries AskHighPrices { get; }
+        IQcDataSeries AskLowPrices { get; }
+        IQcDataSeries AskClosePrices { get; }
+        IQcVolumeSeries AskVolumes { get; }
+        #endregion
+
+        int Count { get; }
+        int TimeFrameSeconds { get; }
+        string SymbolName { get; }
+        bool IsNewBar { get; }
+        void OnTick();
+        void OnStop();
+    }
+}
