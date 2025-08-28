@@ -265,26 +265,28 @@ namespace NinjaTrader.NinjaScript.Strategies
             {
                 try
                 {
-                    // Update the bars with the new market data
+                    // Update all bars with the new market data
                     foreach (var bar in BarsDictionary)
                         if (args.Instrument.FullName == bar.Key.Item2)
                             // Ignore the primary data series which should be set to 1 Tick
                             if (bar.Key.Item1 == GetBarsSeconds(BarsArray[BarsInProgress].BarsPeriod))
-                            {
                                 bar.Value.OnBarsMarketData();
 
-                                // Call bot for each bars in progress not only for primary data series
-                                if (mDoStart)
-                                {
-                                    OnStart();  // Call user's bot OnStart
-                                    mDoStart = false;
-                                }
+                    // Wait for all bars to be updated and call user 's bot only once on the last bars update
+                    if (BarsInProgress == BarsArray.Length - 1)
+                    {
+                        // Must user's bot OnStart here since we do not have a valid Time before
+                        if (mDoStart)
+                        {
+                            OnStart();
+                            mDoStart = false;
+                        }
 
-                                // Call user bot
-                                AbstractRobot.PreTick();
-                                OnTick();
-                                AbstractRobot.PostTick();
-                            }
+                        // Call user bot
+                        AbstractRobot.PreTick();
+                        OnTick();
+                        AbstractRobot.PostTick();
+                    }
                 }
                 catch (Exception)
                 {

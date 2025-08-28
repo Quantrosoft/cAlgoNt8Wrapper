@@ -216,6 +216,7 @@ namespace RobotLib.Cs
             string retVal = base.ConfigInit(robot, timeZoneId);
             if ("" == retVal)
             {
+#if CTRADER
                 mRobot.Positions.Opened += (PositionOpenedEventArgs args) =>
                 {
                     DrawOnOpenedPosition(
@@ -236,6 +237,7 @@ namespace RobotLib.Cs
                         args.Position.GrossProfit >= 0,
                         args.Position.Label);
                 };
+#endif
             }
 
             return retVal;
