@@ -34,11 +34,10 @@ namespace NinjaTrader.NinjaScript.Strategies
             mRobot = robot;
             mStrategy = robot;
             mTextFont = new NinjaTrader.Gui.Tools.SimpleFont("Arial", 14);
-            if (null != mStrategy.ChartControl)
-                ColorSettings = new ChartColorSettings()
-                {
-                    ForegroundColor = NinjaBrushConverter.ToCtraderColor(mStrategy.ChartControl.Properties.ChartText),
-                };
+            ColorSettings = new ChartColorSettings()
+            {
+                ForegroundColor = Color.White
+            };
         }
 
         //
@@ -100,7 +99,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         //
         // Summary:
         //     Gets the time frame of the chart from 1 minute to 1 month.
-        public TimeFrame TimeFrame 
+        public TimeFrame TimeFrame
             => AbstractRobot.Secs2Tf(mRobot.AbstractRobot.QcBars.TimeFrameSeconds, out _);
 
         //

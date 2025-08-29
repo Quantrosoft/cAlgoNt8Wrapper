@@ -628,8 +628,11 @@ namespace RobotLib
             var openPrice = 0.0;
             foreach (var pos in mRobot.Positions)
             {
-                (grossProfit, netProfit, openPrice) = GetProfitsPrice(pos);
-                AccountEquity = AccountBalance + netProfit;
+                if (pos.EntryTime > CoFu.TimeInvalid)
+                {
+                    (grossProfit, netProfit, openPrice) = GetProfitsPrice(pos);
+                    AccountEquity = AccountBalance + netProfit;
+                }
             }
 
             if (Account.Balance != AccountBalance)

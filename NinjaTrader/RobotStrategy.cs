@@ -29,6 +29,7 @@ using NinjaTrader.NinjaScript.Indicators;
 using NinjaTrader.NinjaScript.Strategies.Internals;
 using RobotLib;
 using RobotLib.Cs;
+using Rules1;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -93,6 +94,24 @@ namespace NinjaTrader.NinjaScript.Strategies
         private bool mDoStart;
         private CSRobotFactory mRobotFactory;
         private bool mIsStopped;
+
+        private bool IsAnalyzer => IsInStrategyAnalyzer;
+
+        private bool IsPlayback =>
+            Connection.PlaybackConnection != null &&
+            Connection.PlaybackConnection.Status == ConnectionStatus.Connected;
+
+        private bool IsRealtimeStreaming => State == State.Realtime && !IsAnalyzer;
+
+        // Name-based check per NT guidance (Sim101 or custom sim accounts usually start with "Sim")
+        private bool IsSimAccount => Account != null && base.Account.Name.StartsWith("Sim", StringComparison.OrdinalIgnoreCase);
+        private bool IsLiveAccount => Account != null && !IsSimAccount;
+
+        // Final gates
+        private bool IsLiveTrading => IsRealtimeStreaming && !IsPlayback && IsLiveAccount;
+        private bool IsSimTrading => IsRealtimeStreaming && !IsPlayback && IsSimAccount;
+        private bool IsAnyBacktest => IsAnalyzer || IsPlayback;
+        private State State => base.State;
         #endregion
 
         #region Overrides
@@ -144,6 +163,14 @@ namespace NinjaTrader.NinjaScript.Strategies
                         PendingOrders = new PendingOrders(this);
                         History = new History(this);
                         Chart = new Chart(this);
+
+                        if (IsAnalyzer)
+                            RunningMode = RunningMode.SilentBacktesting;
+                        else if (IsPlayback)
+                            RunningMode = RunningMode.VisualBacktesting;
+                        else
+                            RunningMode = RunningMode.RealTime;
+
 
                         AbstractRobot.ConfigInit(this); // set time zone, open/close callbacks, etc.
 
@@ -225,18 +252,9 @@ namespace NinjaTrader.NinjaScript.Strategies
                     break;
 
                 case State.Historical:
-                    {
-                        if (ChartControl != null)
-                            RunningMode = RunningMode.VisualBacktesting;
-                        else
-                            RunningMode = RunningMode.SilentBacktesting;
-                    }
                     break;
 
                 case State.Realtime:
-                    {
-                        RunningMode = RunningMode.RealTime;
-                    }
                     break;
 
                 case State.Terminated:
@@ -373,6 +391,16 @@ namespace NinjaTrader.NinjaScript.Strategies
                 {
                     position = Positions.Where(p => GetSignal(p.Label, p.Comment) == execution.Order.Name
                         || GetSignal(p.Label, p.Comment) == execution.Order.FromEntrySignal).FirstOrDefault();
+                    position.EntryTime = Time;
+
+                    // remove invalid positions left behind by previous unfilled opens
+                    Position invalidPos = null;
+                    do
+                    {
+                        invalidPos = Positions.Where(p => p.EntryTime < CoFu.TimeInvalid).FirstOrDefault();
+                        if (null != invalidPos)
+                            Positions.Remove(invalidPos);
+                    } while (null != invalidPos);
                 }
 
                 // From Ninja website:
@@ -499,7 +527,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             var position = new Position(AbstractRobot, order)
             {
-                EntryTime = Time,
+                // Real EntryTime will be set by OnExecutionUpdate()
+                EntryTime = default,
                 Label = label,
                 Comment = comment,
                 StopLoss = stopLossPrice,
@@ -670,14 +699,19 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (position.TradeType == TradeType.Buy)
             {
                 if (position.GrossProfit > 0)
-                    order = ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    // From NT Web Site: Methods that generate orders to exit a position will be ignored if:
+                    // A position is open and an order submitted by an enter method(EnterLongLimit() for example)
+                    // is active and the order is used to open a position in the opposite direction
+                    //order = ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    order = ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
                 else
                     order = ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
             else
             {
                 if (position.GrossProfit > 0)
-                    order = ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    order = ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
+                //order = ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
                 else
                     order = ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
