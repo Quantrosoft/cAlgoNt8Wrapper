@@ -52,20 +52,20 @@ namespace NinjaTrader.NinjaScript.Strategies
         #region Members
         // Bars are not here any more but in AbstractRobot.cs as IQcBars QcBars
         // because they are needed by both platforms
-        [XmlIgnore] public Symbol Symbol;
-        [XmlIgnore] public Symbols Symbols;
-        [XmlIgnore] public new Account Account;
-        [XmlIgnore] public new Positions Positions;
-        [XmlIgnore] public PendingOrders PendingOrders;
-        [XmlIgnore] public History History;
-        [XmlIgnore] public Chart Chart;
-        [XmlIgnore] public MarketData MarketData;
-        [XmlIgnore] public RunningMode RunningMode;
-        [XmlIgnore] public double CommissionPerQuantity;
-        [XmlIgnore] public TimeZoneInfo PlatformTimeZoneInfo;
-        [XmlIgnore] public MarketDataEventArgs MarketDataEventArgs;
-        [XmlIgnore] public AbstractRobot AbstractRobot;
-        [XmlIgnore]
+        [XmlIgnore, Browsable(false)] public Symbol Symbol;
+        [XmlIgnore, Browsable(false)] public Symbols Symbols;
+        [XmlIgnore, Browsable(false)] public new Account Account;
+        [XmlIgnore, Browsable(false)] public new Positions Positions;
+        [XmlIgnore, Browsable(false)] public PendingOrders PendingOrders;
+        [XmlIgnore, Browsable(false)] public History History;
+        [XmlIgnore, Browsable(false)] public Chart Chart;
+        [XmlIgnore, Browsable(false)] public MarketData MarketData;
+        [XmlIgnore, Browsable(false)] public RunningMode RunningMode;
+        [XmlIgnore, Browsable(false)] public double CommissionPerQuantity;
+        [XmlIgnore, Browsable(false)] public TimeZoneInfo PlatformTimeZoneInfo;
+        [XmlIgnore, Browsable(false)] public MarketDataEventArgs MarketDataEventArgs;
+        [XmlIgnore, Browsable(false)] public AbstractRobot AbstractRobot;
+        [XmlIgnore, Browsable(false)]
         public Dictionary<string, string> Icm2Pepper = new()  // ICM ==> Pepperstone symbol convert
         {
             {"STOXX50", "EUSTX50"},
@@ -79,39 +79,37 @@ namespace NinjaTrader.NinjaScript.Strategies
             {"XTIUSD", "SpotCrude"},
             {"XNGUSD", "NatGas"}
         };
-        [XmlIgnore]
+        [XmlIgnore, Browsable(false)]
         public Dictionary<(int, string), NtQcBars> BarsDictionary
             = new Dictionary<(int, string), NtQcBars>();
 
-        [Browsable(false)]
-        [XmlIgnore]
+        [XmlIgnore, Browsable(false)]
         public new DateTime Time =>
             IsTickReplay ? (null == MarketDataEventArgs ? CoFu.TimeInvalid : MarketDataEventArgs.Time) :
             Times[0][0];    // Nt primary data series is used as cTrader data series
-        [Browsable(false)][XmlIgnore] public bool IsBacktesting => RunningMode != RunningMode.RealTime;
+        [XmlIgnore, Browsable(false)] public bool IsBacktesting => RunningMode != RunningMode.RealTime;
+
+        [XmlIgnore, Browsable(false)] public bool IsAnalyzer => IsInStrategyAnalyzer;
+
+        [XmlIgnore, Browsable(false)]
+        public bool IsPlayback =>
+            Connection.PlaybackConnection != null &&
+            Connection.PlaybackConnection.Status == ConnectionStatus.Connected;
+
+        [XmlIgnore, Browsable(false)] public bool IsRealtimeStreaming => State == State.Realtime && !IsAnalyzer;
+
+        // Name-based check per NT guidance (Sim101 or custom sim accounts usually start with "Sim")
+        [XmlIgnore, Browsable(false)] public bool IsSimAccount => Account != null && base.Account.Name.StartsWith("Sim", StringComparison.OrdinalIgnoreCase);
+        [XmlIgnore, Browsable(false)] public bool IsLiveAccount => Account != null && !IsSimAccount;
+        [XmlIgnore, Browsable(false)] public bool IsLiveTrading => IsRealtimeStreaming && !IsPlayback && IsLiveAccount;
+        [XmlIgnore, Browsable(false)] public bool IsSimTrading => IsRealtimeStreaming && !IsPlayback && IsSimAccount;
+        [XmlIgnore, Browsable(false)] public bool IsAnyBacktest => IsAnalyzer || IsPlayback;
+        [XmlIgnore, Browsable(false)] public State State => base.State;
 
         private bool mDoTerminate;
         private bool mDoStart;
         private CSRobotFactory mRobotFactory;
         private bool mIsStopped;
-
-        private bool IsAnalyzer => IsInStrategyAnalyzer;
-
-        private bool IsPlayback =>
-            Connection.PlaybackConnection != null &&
-            Connection.PlaybackConnection.Status == ConnectionStatus.Connected;
-
-        private bool IsRealtimeStreaming => State == State.Realtime && !IsAnalyzer;
-
-        // Name-based check per NT guidance (Sim101 or custom sim accounts usually start with "Sim")
-        private bool IsSimAccount => Account != null && base.Account.Name.StartsWith("Sim", StringComparison.OrdinalIgnoreCase);
-        private bool IsLiveAccount => Account != null && !IsSimAccount;
-
-        // Final gates
-        private bool IsLiveTrading => IsRealtimeStreaming && !IsPlayback && IsLiveAccount;
-        private bool IsSimTrading => IsRealtimeStreaming && !IsPlayback && IsSimAccount;
-        private bool IsAnyBacktest => IsAnalyzer || IsPlayback;
-        private State State => base.State;
         #endregion
 
         #region Overrides
