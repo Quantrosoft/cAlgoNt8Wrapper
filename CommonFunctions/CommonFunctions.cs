@@ -20,7 +20,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+#if CTRADER
 using Newtonsoft.Json.Linq;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -534,7 +536,7 @@ namespace TdsCommons
         Unknown
     }
 #endif
-    #endregion
+#endregion
 
     public class CoFu
     {
@@ -1121,7 +1123,7 @@ namespace TdsCommons
 
                 return false;
             }
-
+#if CTRADER
             try
             {
                 // JSON fallback
@@ -1143,7 +1145,7 @@ namespace TdsCommons
             {
                 // Handle or log malformed JSON if needed
             }
-
+#endif
             return false;
         }
 
@@ -1237,6 +1239,6 @@ namespace TdsCommons
                 return $"Error writing tickdata to file {fileName}: {ex.Message}";
             }
         }
-        #endregion
+#endregion
     }
 }
