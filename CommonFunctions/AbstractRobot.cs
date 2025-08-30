@@ -349,6 +349,7 @@ namespace RobotLib
         private DataRateId mDataRateId;
         private Dictionary<string, TickServerReader<TickserverMarketDataArgs>> TickServerDictionary
             = new Dictionary<string, TickServerReader<TickserverMarketDataArgs>>();
+        private DateTime mBackTestStartTime;
 
         public double LotPoint(Symbol symbol)
         {
@@ -492,6 +493,7 @@ namespace RobotLib
         public virtual void Start()
         {
             mInitialTime = mRobot.Time;
+            mBackTestStartTime = DateTime.Now;
 
             mIsInit = true;
             PreTick();
@@ -553,21 +555,10 @@ namespace RobotLib
             var maxStartEquityDdPercent = 100 * MaxEquityDrawdownValue / InitialAccountBalance;
             Calmar = 0 == MaxEquityDrawdownValue ? 0 : annualProfit / MaxEquityDrawdownValue;
             var winningRatioPercent = 0 == TotalTrades ? 0 : 100 * (double)AccountWinningTrades / TotalTrades;
-#if !CTRADER
-            //var AverageEtd = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageEtd;
-            //var AverageMae = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageMae;
-            //var AverageMfe = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageMfe;
-            //var AverageProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.AverageProfit;
-            //var CumProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit;
-            //var Drawdown = SystemPerformance.AllTrades.TradesPerformance.Currency.Drawdown;
-            //var LargestLoser = SystemPerformance.AllTrades.TradesPerformance.Currency.LargestLoser;
-            //var LargestWinner = SystemPerformance.AllTrades.TradesPerformance.Currency.LargestWinner;
-            //var ProfitPerMonth = SystemPerformance.AllTrades.TradesPerformance.Currency.ProfitPerMonth;
-            //var StdDev = SystemPerformance.AllTrades.TradesPerformance.Currency.StdDev;
-            //var Turnaround = SystemPerformance.AllTrades.TradesPerformance.Currency.Turnaround;
-            //var Ulcer = SystemPerformance.AllTrades.TradesPerformance.Currency.Ulcer;
-#endif
+            var backTestDuration = DateTime.Now - mBackTestStartTime;
+
             infoText += DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + " | " + version;
+            infoText += "\nBacktest duration: " + backTestDuration.ToString(@"dd\.hh\.mm\.ss");
             infoText += "\n# of config files: " + configsCount.ToString();
             infoText += "\nMaxMargin: " + Account.Asset + " "
                 + ConvertUtils.DoubleToString(MaxMargin, 2);
