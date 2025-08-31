@@ -272,8 +272,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                     || (IsTickReplay && MarketDataType.Last != args.MarketDataType))
                 return;
 
-            // ToDo: Put into symbol corresponding with args.Instrument
-            // when having several symbols
+            // ToDo: Put into symbol corresponding with args.Instrument when having several symbols
             MarketDataEventArgs = args;
 
             // we have to postpone OnStart etc, til here because earlier we do not have a valid Time
@@ -282,14 +281,22 @@ namespace NinjaTrader.NinjaScript.Strategies
                 try
                 {
                     // Update all bars with the new market data
+                    var allInized = true;
                     foreach (var bar in BarsDictionary)
+                    {
                         if (args.Instrument.FullName == bar.Key.Item2)
+                        {
                             // Ignore the primary data series which should be set to 1 Tick
                             if (bar.Key.Item1 == GetBarsSeconds(BarsArray[BarsInProgress].BarsPeriod))
                                 bar.Value.OnBarsMarketData();
+                        }
+
+                        if (0 == bar.Value.Count)
+                            allInized = false;
+                    }
 
                     // Wait for all bars to be updated and call user 's bot only once on the last bars update
-                    if (BarsInProgress == BarsArray.Length - 1)
+                    if (allInized && BarsInProgress == BarsArray.Length - 1)
                     {
                         // Must user's bot OnStart here since we do not have a valid Time before
                         if (mDoStart)
