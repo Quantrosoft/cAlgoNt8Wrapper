@@ -61,7 +61,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         public void OnMarketData()
         {
             var args = mBars.Robot.MarketDataEventArgs;
-            if (mBars.IsNewBar)
+            if (mBars.IsNewInternalBar)
             {
                 mTickReplayData.Add(0);
                 mVolume = 0; // reset volumes at the start of a new bar

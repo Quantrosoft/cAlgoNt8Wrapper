@@ -45,7 +45,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         public void OnMarketData()
         {
-            if (mBars.IsNewBar || 0 == mTickReplayData.Count)
+            if (mBars.IsNewInternalBar || 0 == mTickReplayData.Count)
                 mTickReplayData.Add(mBars.Robot.MarketDataEventArgs.Time);
         }
 

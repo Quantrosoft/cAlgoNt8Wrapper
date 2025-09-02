@@ -41,10 +41,13 @@ namespace NinjaTrader.NinjaScript.Strategies
         public IQcDataSeries AskLowPrices { get; private set; }
         public IQcDataSeries AskClosePrices { get; private set; }
         public IQcVolumeSeries AskVolumes { get; private set; }
+        public int BarsBarIndex { get; private set; }
         public int TimeFrameSeconds { get; private set; }
-        public bool IsNewBar { get; private set; }
+        public bool IsNewBar { get; set; }
         public int Count => OpenTimes.Count;
         public string SymbolName => mSymbolName;
+
+        public bool IsNewInternalBar { get; private set; }
 
         //     Gets the average prices data (Open + High + Low + Close) / 4.
         //public IQcDataSeries AveragePrices => mBars.AveragePrices;
@@ -63,12 +66,12 @@ namespace NinjaTrader.NinjaScript.Strategies
         public int BidBarsIndex = -1;
         public int AskBarsIndex = -1;
         public BarsPeriod BarsPeriod;
-        private double mPriceLevelSize;
         public Strategy Robot;
         public int BarsSeconds;
 
         private DateTime mPrevTime;
         private string mSymbolName;
+        private double mPriceLevelSize;
         #endregion
 
         public NtQcBars(Strategy robot,
@@ -170,15 +173,23 @@ namespace NinjaTrader.NinjaScript.Strategies
                     AskVolumes = new NtQcVolumeSeries(this, symbol, BidAsk.Ask, Robot.Volumes[i],
                         mPriceLevelSize);
 
-                    symbol.SymbolBarIndex = i;
+                    BarsBarIndex = i;
+                    if (-1 != mPriceLevelSize)
+                        symbol.SymbolBarIndex = i;
                 }
             }
         }
 
         public void OnBarsMarketData()
         {
-            IsNewBar = CoFu.IsNewBar(BarsSeconds, Robot.MarketDataEventArgs.Time, mPrevTime)
-                || mPrevTime <= CoFu.TimeInvalid;
+            IsNewInternalBar = (mPrevTime <= CoFu.TimeInvalid
+                    || CoFu.IsNewBar(BarsSeconds,
+                            Robot.MarketDataEventArgs.Time,
+                            mPrevTime));
+
+            // Postpone reset of clients new bar until bots OnTick was called
+            if (!IsNewBar)
+                IsNewBar = IsNewInternalBar;
 
             if (-1 != mPriceLevelSize)
             {

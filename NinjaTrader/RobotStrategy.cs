@@ -269,56 +269,55 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (args.Bid <= 0
                     || args.Ask <= 0
                     || mIsStopped
-                    || (IsTickReplay && MarketDataType.Last != args.MarketDataType))
+                    || (IsTickReplay && MarketDataType.Last != args.MarketDataType)
+                    || CurrentBar < 0)
                 return;
 
             // ToDo: Put into symbol corresponding with args.Instrument when having several symbols
             MarketDataEventArgs = args;
 
             // we have to postpone OnStart etc, til here because earlier we do not have a valid Time
-            if (CurrentBar >= 0)
+            try
             {
-                try
+                // Update all bars with the new market data
+                var allInized = true;
+                foreach (var bars in BarsDictionary)
                 {
-                    // Update all bars with the new market data
-                    var allInized = true;
-                    foreach (var bar in BarsDictionary)
-                    {
-                        if (args.Instrument.FullName == bar.Key.Item2)
-                        {
-                            // Ignore the primary data series which should be set to 1 Tick
-                            if (bar.Key.Item1 == GetBarsSeconds(BarsArray[BarsInProgress].BarsPeriod))
-                                bar.Value.OnBarsMarketData();
-                        }
+                    if (BarsInProgress == bars.Value.BarsBarIndex)
+                        bars.Value.OnBarsMarketData();
 
-                        if (0 == bar.Value.Count)
-                            allInized = false;
+                    if (0 == bars.Value.Count)
+                        allInized = false;
+                }
+
+                // Wait for all bars to be updated and call user 's bot only once on the last bars update
+                if (allInized && BarsInProgress == BarsArray.Length - 1)
+                {
+                    // Must user's bot OnStart here since we do not have a valid Time before
+                    if (mDoStart)
+                    {
+                        OnStart();
+                        mDoStart = false;
                     }
-
-                    // Wait for all bars to be updated and call user 's bot only once on the last bars update
-                    if (allInized && BarsInProgress == BarsArray.Length - 1)
+                    else
                     {
-                        // Must user's bot OnStart here since we do not have a valid Time before
-                        if (mDoStart)
-                        {
-                            OnStart();
-                            mDoStart = false;
-                        }
-
-                        // Call user bot
                         AbstractRobot.PreTick();
                         OnTick();
                         AbstractRobot.PostTick();
                     }
+
+                    // Reset IsNewBar for all bars after bot has handled this tick
+                    foreach (var bars in BarsDictionary)
+                        bars.Value.IsNewBar = false;
                 }
-                catch (Exception)
+            }
+            catch (Exception)
+            {
+                var error = new Error()
                 {
-                    var error = new Error()
-                    {
-                        Code = ErrorCode.TechnicalError
-                    };
-                    OnError(error);
-                }
+                    Code = ErrorCode.TechnicalError
+                };
+                OnError(error);
             }
         }
 #if false

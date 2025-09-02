@@ -48,7 +48,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         public void OnMarketData()
         {
             var args = mBars.Robot.MarketDataEventArgs;
-            if (mBars.IsNewBar || 0 == mTickReplayData.Count)
+            if (mBars.IsNewInternalBar || 0 == mTickReplayData.Count)
                 mTickReplayData.Add(args.Bid);
 
             switch (PlatformDataSeries.PriceType) // all series have the same PriceType
