@@ -22,6 +22,7 @@ SOFTWARE.
 
 using NinjaTrader.Data;
 using NinjaTrader.NinjaScript;
+using NinjaTrader.NinjaScript.DrawingTools;
 using System;
 using System.Collections.Generic;
 using TdsCommons;
@@ -32,135 +33,165 @@ namespace NinjaTrader.NinjaScript.Strategies
     {
         private NtQcBars mBars;
         private Symbol mSymbol;
-        private bool mIsAsk;
-        private bool mIsBid;
-        private double mPriceLevelSize;
-        private Ringbuffer<long> mTickReplayData;
-        private double mDigitsSize;
-        private SortedDictionary<int, long> mPriceLevels = new();
+        private bool mIsBidNotAsk;
+
+        private Ringbuffer<long> mTickReplayVolumes;
+        private Ringbuffer<Dictionary<int, long>> mLevelsBuf;
+
+        // NEW: ringbuffers for min/max keys per bar
+        private Ringbuffer<int> mMinKeyBuf;
+        private Ringbuffer<int> mMaxKeyBuf;
+
+        private Dictionary<int, long> mPriceLevels;
+        private VolumeSeries mPlatformVolumeSeries;
         private long mVolume;
 
-        public VolumeSeries PlatformVolumeSeries { get; }
+        // NEW: current-bar min/max trackers
+        private int mMinKey;
+        private int mMaxKey;
 
-        public NtQcVolumeSeries(NtQcBars bars,
+        private static readonly Dictionary<int, long> s_emptyLevels = new();
+
+        public double DigitsSize { get; }
+
+        public NtQcVolumeSeries(
+            NtQcBars bars,
             Symbol symbol,
             BidAsk bidAsk,
-            NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries,
-            double cashPriceLevelSize)
+            NinjaTrader.NinjaScript.VolumeSeries ninjaVolumeSeries)
         {
             mBars = bars;
             mSymbol = symbol;
-            mIsAsk = bidAsk == BidAsk.Ask;
-            mIsBid = bidAsk == BidAsk.Bid;
-            PlatformVolumeSeries = ninjaVolumeSeries;
-            mTickReplayData = new Ringbuffer<long>(NtQcBars.TickReplaySize);
-            mDigitsSize = 1.0 / Math.Pow(10, mSymbol.Digits);
-            mPriceLevelSize = cashPriceLevelSize;
+            mIsBidNotAsk = bidAsk == BidAsk.Bid;
+            mPlatformVolumeSeries = ninjaVolumeSeries;
+
+            mTickReplayVolumes = new Ringbuffer<long>(NtQcBars.TickReplaySize);
+
+            DigitsSize = 1.0 / Math.Pow(10, mSymbol.Digits);
+
+            if (mBars.PriceLevelSize > 0)
+            {
+                mLevelsBuf = new Ringbuffer<Dictionary<int, long>>(NtQcBars.TickReplaySize);
+                mMinKeyBuf = new Ringbuffer<int>(NtQcBars.TickReplaySize);
+                mMaxKeyBuf = new Ringbuffer<int>(NtQcBars.TickReplaySize);
+                mPriceLevels = new Dictionary<int, long>();
+                mLevelsBuf.Add(mPriceLevels);
+
+                mMinKey = int.MaxValue;
+                mMaxKey = int.MinValue;
+                mMinKeyBuf.Add(mMinKey);
+                mMaxKeyBuf.Add(mMaxKey);
+            }
         }
 
         public void OnMarketData()
         {
             var args = mBars.Robot.MarketDataEventArgs;
+
             if (mBars.IsNewInternalBar)
             {
-                mTickReplayData.Add(0);
-                mVolume = 0; // reset volumes at the start of a new bar
-                mPriceLevels.Clear();
+                if (mBars.PriceLevelSize > 0)
+                {
+                    // Push previous bar’s snapshot into the ring buffers
+                    mLevelsBuf.Add(mPriceLevels);
+                    mMinKeyBuf.Add(mMinKey);
+                    mMaxKeyBuf.Add(mMaxKey);
+
+                    // Start new bar with fresh dictionary and reset min/max
+                    mPriceLevels = new Dictionary<int, long>();
+                    mMinKey = int.MaxValue;
+                    mMaxKey = int.MinValue;
+                }
+
+                // Open a new slot in the volume buffer
+                mTickReplayVolumes.Add(0);
+                mVolume = 0;
             }
 
-            // Accumulate volumes
-            if (args.Ask != args.Bid)   // do not add volume if prices are equal
+            // Accumulate volumes (skip crossed/locked check where ask==bid)
+            if (args.Ask != args.Bid)
             {
-                var priceLevel = CoFu.iPrice(args.Price, mDigitsSize);
+                bool isAsk = !mIsBidNotAsk && args.Price >= args.Ask;
+                bool isBid = mIsBidNotAsk && args.Price <= args.Bid;
 
-                if (mIsAsk && args.Price >= args.Ask)
+                if (isAsk || isBid)
                 {
                     mVolume += args.Volume;
-                    mPriceLevels[priceLevel] = (mPriceLevels.TryGetValue(priceLevel, out var v) ? v : 0) 
-                        + args.Volume;
-                }
 
-                if (mIsBid && args.Price <= args.Bid)
-                {
-                    mVolume += args.Volume;
-                    mPriceLevels[priceLevel] = (mPriceLevels.TryGetValue(priceLevel, out var v) ? v : 0)
-                        + args.Volume;
+                    if (mBars.PriceLevelSize > 0)
+                    {
+                        var priceLevel = CoFu.iPrice(args.Price, DigitsSize)
+                                         / CoFu.iPrice(mBars.PriceLevelSize, DigitsSize);
+
+                        if (mPriceLevels.TryGetValue(priceLevel, out var v))
+                        {
+                            mPriceLevels[priceLevel] = v + args.Volume;
+                        }
+                        else
+                        {
+                            mPriceLevels[priceLevel] = args.Volume;
+
+                            // NEW: update min/max on FIRST insertion of this key
+                            if (priceLevel < mMinKey) mMinKey = priceLevel;
+                            if (priceLevel > mMaxKey) mMaxKey = priceLevel;
+                        }
+                    }
                 }
             }
 
-            mTickReplayData.Swap(mVolume);
+            // Keep head of buffers reflecting the current bar
+            mTickReplayVolumes.Swap(mVolume);
+            if (mBars.PriceLevelSize > 0)
+            {
+                mLevelsBuf.Swap(mPriceLevels);
+                mMinKeyBuf.Swap(mMinKey);
+                mMaxKeyBuf.Swap(mMaxKey);
+            }
         }
 
-        //     An indexer used to access the NtVolumeSeries array
-        //
-        // Parameters:
-        //   barsAgo:
-        //     An int representing from the current bar the number of historical bars to reference.
-        //
-        // The philosophie of cTrader is to use array indexing
-        // So [0] is the very 1st element while [Count-1] is the last element
-        // To get the most recent value, use Last(0)
+        // ISeries<double> plumbing (unchanged semantics)
         public double this[int index] => Last(Count - 1 - index);
-
-        //     Indicates the number total number of values in the NtVolumeSeries array.
-        public int Count => PlatformVolumeSeries.Count;
-
-        //     Gets the last value of this time series.
+        public int Count => mPlatformVolumeSeries.Count;
         public double LastValue => Last(0);
 
-        //     Access a value in the dataseries certain bars ago
-        //
-        // Parameters:
-        //   index:
-        //     Number of bars ago
         public double Last(int index)
         {
             if (mBars.Robot.IsTickReplay)
-                return mTickReplayData[index];
+                return mTickReplayVolumes[index];
             else
             {
                 // Do not return end volume of current bar 0; would be future volume
-                if (0 == index)
-                    return 0;
-                else
-                    return (long)PlatformVolumeSeries[index] << 34
-                        | (long)PlatformVolumeSeries[index] << 2;
+                if (index == 0) return 0;
+                // TODO: replace placeholder with your true packed/historical logic
+                return (long)mPlatformVolumeSeries[index] << 34
+                     | (long)mPlatformVolumeSeries[index] << 2;
             }
         }
 
-        //     Returns the underlying NtVolumeSeries value at a specified bar index value.
-        //
-        // Parameters:
-        //   barIndex:
-        //     An int representing an absolute bar index value
-        public double GetValueAt(int barIndex)
-        {
-            return 0;   // NtQcBars.GetVolume(barIndex);
-        }
-
-        //     Indicates if the specified input is set at a barsAgo value relative to the current
-        //     bar.
-        //
-        // Parameters:
-        //   barsAgo:
-        //     An int representing from the current bar the number of historical bars to reference.
-        public bool IsValidDataPoint(int barsAgo)
-        {
-            return false;   // NtQcBars.IsValidDataPoint(barsAgo);
-        }
-
-        //     Indicates if the specified input is set at a specified bar index value
-        //
-        // Parameters:
-        //   barIndex:
-        //     An int representing an absolute bar index value
-        public bool IsValidDataPointAt(int barIndex)
-        {
-            return false;// NtQcBars.IsValidDataPointAt(barIndex);
-        }
-
+        public double GetValueAt(int barIndex) => 0;
+        public bool IsValidDataPoint(int barsAgo) => false;
+        public bool IsValidDataPointAt(int barIndex) => false;
         public void Add(double value) { }
         public void Bump() { }
         public void Swap(double value) { }
+
+        // CHANGED: now returns dictionary + minKey + maxKey
+        // minKey > maxKey indicates "empty"
+        public (Dictionary<int, long> Levels, int MinKey, int MaxKey) GetPriceLevelVolumes(int index)
+        {
+            if (mBars.PriceLevelSize > 0)
+            {
+
+                if (mBars.Robot.IsTickReplay)
+                    return (mLevelsBuf[index], mMinKeyBuf[index], mMaxKeyBuf[index]);
+
+                // If not in TickReplay, typically only current bar has data.
+                if (index == 0)
+                    return (mLevelsBuf[index], mMinKeyBuf[index], mMaxKeyBuf[index]);
+            }
+
+            // Return an explicit "empty" snapshot for history
+            return (s_emptyLevels, int.MaxValue, int.MinValue);
+        }
     }
 }

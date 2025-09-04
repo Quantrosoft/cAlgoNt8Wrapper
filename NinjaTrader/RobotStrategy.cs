@@ -22,6 +22,7 @@ SOFTWARE.
 
 using NinjaTrader.Cbi;
 using NinjaTrader.Core;
+using NinjaTrader.Custom.Strategies.RoadToSuccess;
 using NinjaTrader.Data;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.NinjaScript;
@@ -179,7 +180,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
                             // Set default QcBars and Symbol as pendant of NinjaTrader primary data series
                             AbstractRobot.QcBars = AbstractRobot.GetQcBars(dataRateSeconds,
-                                1,
+                                -1,
                                 Instrument.FullName,
                                 Instrument.FullName);
                         }
@@ -522,7 +523,8 @@ namespace NinjaTrader.NinjaScript.Strategies
             double? stopLossPrice,
             double? takeProfitPrice,
             string comment,
-            CalculationMode calculationMode = CalculationMode.Price)
+            CalculationMode calculationMode,
+            ProfitCloseModes profitCloseMode)
         {
             Order order = null;
             var botSymbol = Symbols.GetSymbol(symbolName);
@@ -540,7 +542,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             };
             Positions.Add(position);
 
-            SetInitialProtection(botSymbol, signal, position.StopLoss, position.TakeProfit, calculationMode);
+            SetInitialProtection(botSymbol, signal, position.StopLoss, position.TakeProfit, calculationMode, profitCloseMode);
 
             order = isLong
                 ? EnterLong((int)volume, signal)
@@ -558,7 +560,8 @@ namespace NinjaTrader.NinjaScript.Strategies
             double? takeProfitPrice,
             CalculationMode calculationMode,
             DateTime? expiration,
-            string comment)
+            string comment,
+            ProfitCloseModes profitCloseMode)
         {
             Order order = null;
             var botSymbol = Symbols.GetSymbol(symbolName);
@@ -592,7 +595,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             };
             PendingOrders.Add(pendingOrder);
 
-            SetInitialProtection(pendingOrder.Symbol, signal, pendingOrder.StopLoss, pendingOrder.TakeProfit, calculationMode);
+            SetInitialProtection(pendingOrder.Symbol, signal, pendingOrder.StopLoss, pendingOrder.TakeProfit, calculationMode, profitCloseMode);
 
             // The limit order lives til end of day or til canceled
             order = isLong
@@ -649,10 +652,11 @@ namespace NinjaTrader.NinjaScript.Strategies
             string signal,
             double? stopLoss,
             double? takeProfit,
-            CalculationMode calculationMode)
+            CalculationMode calculationMode,
+            ProfitCloseModes profitCloseMode)
         {
             if (stopLoss.HasValue && 0 != stopLoss.Value)
-                if (-1 == takeProfit)
+                if (ProfitCloseModes.TrailingStop == profitCloseMode)
                 {
                     // NT is such a piece of SHIT !!! NT easily could compute ticks from currency itself!
                     // From https://ninjatrader.com/support/helpguides/nt8/NT%20HelpGuide%20English.html?settrailstop.htm

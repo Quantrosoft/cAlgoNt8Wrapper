@@ -47,6 +47,7 @@ namespace TdsCommons
         int TimeFrameSeconds { get; }
         string SymbolName { get; }
         bool IsNewBar { get; }
+        double PriceLevelSize { get; set; }
         void OnTick();
         void OnStop();
     }

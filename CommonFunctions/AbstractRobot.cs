@@ -1401,7 +1401,8 @@ namespace RobotLib
             double volume,
             double stopLoss,
             double takeProfit,
-            CalculationMode calculationMode)
+            CalculationMode calculationMode,
+            ProfitCloseModes profitCloseMode)
         {
             var isLong = tradeType == TradeType.Buy;
             if ((isLong && (allowedDirection == TradeDirections.na
@@ -1439,7 +1440,8 @@ namespace RobotLib
                     stopLoss,
                     takeProfit,
                     orderComment,
-                    calculationMode);
+                    calculationMode,
+                    profitCloseMode);
 #endif
             }
             return null;
@@ -1455,7 +1457,8 @@ namespace RobotLib
             double targetPrice,
             double? stopLossPrice,
             double? takeProfitPrice,
-            CalculationMode calculationMode)
+            CalculationMode calculationMode,
+            ProfitCloseModes profitCloseMode)
         {
             var isLong = tradeType == TradeType.Buy;
             if ((isLong && (allowedDirection == TradeDirections.na
@@ -1486,7 +1489,8 @@ namespace RobotLib
                     takeProfitPrice,
                     calculationMode,
                     null,
-                    orderComment);
+                    orderComment,
+                    profitCloseMode);
 #endif
                 if (result.IsSuccessful)
                     return result.Position;
@@ -1561,7 +1565,7 @@ namespace RobotLib
         }
 
         public IQcBars GetQcBars(int barsSeconds,
-            double cashPriceLevelSize,
+            double priceLevelSize,
             string symbolName,
             string SymbolPair = "")
         {
@@ -1582,12 +1586,16 @@ namespace RobotLib
 #else
             if (!mRobot.BarsDictionary.ContainsKey((barsSeconds, symbolName)))
             {
-                var ntBars = new NtQcBars(mRobot, symbolName, barsSeconds, cashPriceLevelSize);
+                var ntBars = new NtQcBars(mRobot, symbolName, barsSeconds, priceLevelSize);
                 mRobot.BarsDictionary.Add((barsSeconds, symbolName), ntBars);
                 bars = ntBars;
             }
             else
+            {
                 bars = mRobot.BarsDictionary[(barsSeconds, symbolName)];
+                if (bars.PriceLevelSize != priceLevelSize)
+                    bars.PriceLevelSize = priceLevelSize;
+            }
 #endif
             return bars;
         }

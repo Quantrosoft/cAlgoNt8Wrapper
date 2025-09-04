@@ -48,6 +48,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         public string SymbolName => mSymbolName;
 
         public bool IsNewInternalBar { get; private set; }
+        public double PriceLevelSize { get; set; }
 
         //     Gets the average prices data (Open + High + Low + Close) / 4.
         //public IQcDataSeries AveragePrices => mBars.AveragePrices;
@@ -71,19 +72,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         private DateTime mPrevTime;
         private string mSymbolName;
-        private double mPriceLevelSize;
         #endregion
 
         public NtQcBars(Strategy robot,
             string symbolPair,
             int barPeriodSeconds,
-            double cashPriceLevelSize)
+            double priceLevelSize)
         {
             Robot = robot;
             mSymbolName = symbolPair;
             BarsSeconds = barPeriodSeconds;
             BarsPeriod = new BarsPeriod();
-            mPriceLevelSize = cashPriceLevelSize;
+            PriceLevelSize = priceLevelSize;
 
             if (BarsSeconds >= SEC_PER_MINUTE)
             {
@@ -163,18 +163,16 @@ namespace NinjaTrader.NinjaScript.Strategies
                     BidHighPrices = new NtQcDataSeries(this, symbol, Robot.Highs[i]);
                     BidLowPrices = new NtQcDataSeries(this, symbol, Robot.Lows[i]);
                     BidClosePrices = new NtQcDataSeries(this, symbol, Robot.Closes[i]);
-                    BidVolumes = new NtQcVolumeSeries(this, symbol, BidAsk.Bid, Robot.Volumes[i],
-                        mPriceLevelSize);
+                    BidVolumes = new NtQcVolumeSeries(this, symbol, BidAsk.Bid, Robot.Volumes[i]);
 
                     AskOpenPrices = new NtQcDataSeries(this, symbol, Robot.Opens[i]);
                     AskHighPrices = new NtQcDataSeries(this, symbol, Robot.Highs[i]);
                     AskLowPrices = new NtQcDataSeries(this, symbol, Robot.Lows[i]);
                     AskClosePrices = new NtQcDataSeries(this, symbol, Robot.Closes[i]);
-                    AskVolumes = new NtQcVolumeSeries(this, symbol, BidAsk.Ask, Robot.Volumes[i],
-                        mPriceLevelSize);
+                    AskVolumes = new NtQcVolumeSeries(this, symbol, BidAsk.Ask, Robot.Volumes[i]);
 
                     BarsBarIndex = i;
-                    if (-1 != mPriceLevelSize)
+                    if (-1 != PriceLevelSize)
                         symbol.SymbolBarIndex = i;
                 }
             }
@@ -191,22 +189,20 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (!IsNewBar)
                 IsNewBar = IsNewInternalBar;
 
-            if (-1 != mPriceLevelSize)
-            {
-                OpenTimes.OnMarketData();
+            OpenTimes.OnMarketData();
 
-                BidOpenPrices.OnMarketData();
-                BidHighPrices.OnMarketData();
-                BidLowPrices.OnMarketData();
-                BidClosePrices.OnMarketData();
-                BidVolumes.OnMarketData();
+            BidOpenPrices.OnMarketData();
+            BidHighPrices.OnMarketData();
+            BidLowPrices.OnMarketData();
+            BidClosePrices.OnMarketData();
+            BidVolumes.OnMarketData();
 
-                AskOpenPrices.OnMarketData();
-                AskHighPrices.OnMarketData();
-                AskLowPrices.OnMarketData();
-                AskClosePrices.OnMarketData();
-                AskVolumes.OnMarketData();
-            }
+            AskOpenPrices.OnMarketData();
+            AskHighPrices.OnMarketData();
+            AskLowPrices.OnMarketData();
+            AskClosePrices.OnMarketData();
+            AskVolumes.OnMarketData();
+
             mPrevTime = Robot.MarketDataEventArgs.Time;
         }
 

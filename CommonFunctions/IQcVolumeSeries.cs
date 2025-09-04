@@ -20,6 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+using System.Collections.Generic;
+
 namespace TdsCommons
 {
     public interface IQcVolumeSeries
@@ -27,15 +29,12 @@ namespace TdsCommons
         double this[int index] { get; }
         int Count { get; }
         double LastValue { get; }
-#if CTRADER
-        cAlgo.API.DataSeries PlatformVolumeSeries { get; }
-#else
-        NinjaTrader.NinjaScript.VolumeSeries PlatformVolumeSeries { get; }
-#endif
+        double DigitsSize { get; }
         void OnMarketData();
         double Last(int index);
         void Add(double value);
         void Bump();
         void Swap(double value);
+        (Dictionary<int, long> Levels, int MinKey, int MaxKey) GetPriceLevelVolumes(int index);
     }
 }
