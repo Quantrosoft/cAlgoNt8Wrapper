@@ -278,7 +278,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             MarketDataEventArgs = args;
 
             // we have to postpone OnStart etc, til here because earlier we do not have a valid Time
-            try
+            //try
             {
                 // Update all bars with the new market data
                 var allInized = true;
@@ -312,14 +312,14 @@ namespace NinjaTrader.NinjaScript.Strategies
                         bars.Value.IsNewBar = false;
                 }
             }
-            catch (Exception)
-            {
-                var error = new Error()
-                {
-                    Code = ErrorCode.TechnicalError
-                };
-                OnError(error);
-            }
+            //catch (Exception)
+            //{
+            //    var error = new Error()
+            //    {
+            //        Code = ErrorCode.TechnicalError
+            //    };
+            //    OnError(error);
+            //}
         }
 #if false
         protected override void OnBarUpdate()
