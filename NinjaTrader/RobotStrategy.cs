@@ -126,7 +126,9 @@ namespace NinjaTrader.NinjaScript.Strategies
                         // NinjaTrader is such a piece of Sh...t!!!
                         Calculate = Calculate.OnEachTick;
                         EntriesPerDirection = 1;
+                        StopTargetHandling = StopTargetHandling.ByStrategyPosition;
                         EntryHandling = EntryHandling.AllEntries;
+
                         IsFillLimitOnTouch = false;
                         MaximumBarsLookBack = MaximumBarsLookBack.TwoHundredFiftySix;
                         OrderFillResolution = OrderFillResolution.High;
@@ -135,7 +137,6 @@ namespace NinjaTrader.NinjaScript.Strategies
                         TimeInForce = TimeInForce.Gtc;
                         TraceOrders = false;
                         RealtimeErrorHandling = RealtimeErrorHandling.StopCancelClose;
-                        StopTargetHandling = StopTargetHandling.PerEntryExecution;
                         // Disable this property for performance gains in Strategy Analyzer optimizations
                         // See the Help Guide for additional information
                         IsInstantiatedOnEachOptimizationIteration = true;
@@ -542,7 +543,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             };
             Positions.Add(position);
 
-            SetInitialProtection(botSymbol, signal, position.StopLoss, position.TakeProfit, calculationMode, profitCloseMode);
+            SetInitialProtection(botSymbol, volume, signal, position.StopLoss, position.TakeProfit, calculationMode, profitCloseMode);
 
             order = isLong
                 ? EnterLong((int)volume, signal)
@@ -595,7 +596,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             };
             PendingOrders.Add(pendingOrder);
 
-            SetInitialProtection(pendingOrder.Symbol, signal, pendingOrder.StopLoss, pendingOrder.TakeProfit, calculationMode, profitCloseMode);
+            SetInitialProtection(pendingOrder.Symbol, volume, signal, pendingOrder.StopLoss, pendingOrder.TakeProfit, calculationMode, profitCloseMode);
 
             // The limit order lives til end of day or til canceled
             order = isLong
@@ -649,6 +650,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         }
 
         private void SetInitialProtection(Symbol symbol,
+            double volume,
             string signal,
             double? stopLoss,
             double? takeProfit,
@@ -667,10 +669,10 @@ namespace NinjaTrader.NinjaScript.Strategies
                     SetTrailStop(signal, CalculationMode.Ticks, ticks, false);
                 }
                 else
-                    SetStopLoss(signal, calculationMode, stopLoss.Value, true);
+                    SetStopLoss(signal, calculationMode, stopLoss.Value * volume, true);
 
             if (takeProfit.HasValue && takeProfit > 0)
-                SetProfitTarget(signal, calculationMode, takeProfit.Value);
+                SetProfitTarget(signal, calculationMode, takeProfit.Value * volume);
         }
 
         // Summary:
