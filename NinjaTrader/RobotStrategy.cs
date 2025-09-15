@@ -128,10 +128,10 @@ namespace NinjaTrader.NinjaScript.Strategies
                         EntriesPerDirection = 1;
                         StopTargetHandling = StopTargetHandling.ByStrategyPosition;
                         EntryHandling = EntryHandling.AllEntries;
+                        // OrderFillResolution = OrderFillResolution.High; not available when TickReplay
 
                         IsFillLimitOnTouch = false;
                         MaximumBarsLookBack = MaximumBarsLookBack.TwoHundredFiftySix;
-                        OrderFillResolution = OrderFillResolution.High;
                         Slippage = 0;
                         StartBehavior = StartBehavior.WaitUntilFlat;
                         TimeInForce = TimeInForce.Gtc;
@@ -141,6 +141,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                         // See the Help Guide for additional information
                         IsInstantiatedOnEachOptimizationIteration = true;
                         IsUnmanaged = false;
+                        BarsRequiredToTrade = 20;
 
                         OnSetDefaults();    // Call user's bot
                     }
