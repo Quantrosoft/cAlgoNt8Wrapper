@@ -111,6 +111,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         private bool mDoStart;
         private CSRobotFactory mRobotFactory;
         private bool mIsStopped;
+        private bool _warm;
         #endregion
 
         #region Overrides
@@ -131,7 +132,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                         // OrderFillResolution = OrderFillResolution.High; not available when TickReplay
 
                         IsFillLimitOnTouch = false;
-                        MaximumBarsLookBack = MaximumBarsLookBack.TwoHundredFiftySix;
+                        MaximumBarsLookBack = MaximumBarsLookBack.Infinite;
                         Slippage = 0;
                         StartBehavior = StartBehavior.WaitUntilFlat;
                         TimeInForce = TimeInForce.Gtc;
@@ -273,7 +274,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                     || args.Ask <= 0
                     || mIsStopped
                     || (IsTickReplay && MarketDataType.Last != args.MarketDataType)
-                    || CurrentBar < 0)
+                    || CurrentBar < 1
+                    || !_warm)
                 return;
 
             // ToDo: Put into symbol corresponding with args.Instrument when having several symbols
@@ -283,18 +285,18 @@ namespace NinjaTrader.NinjaScript.Strategies
             try
             {
                 // Update all bars with the new market data
-                var allInized = true;
-                foreach (var bars in BarsDictionary)
-                {
-                    if (BarsInProgress == bars.Value.BarsBarIndex)
-                        bars.Value.OnBarsMarketData();
+                //var allInized = true;
+                //foreach (var bars in BarsDictionary)
+                //{
+                //    if (BarsInProgress == bars.Value.BarsBarIndex)
+                //        bars.Value.OnBarsMarketData();
 
-                    if (0 == bars.Value.Count)
-                        allInized = false;
-                }
+                //    if (0 == bars.Value.Count)
+                //        allInized = false;
+                //}
 
                 // Wait for all bars to be updated and call user 's bot only once on the last bars update
-                if (allInized && BarsInProgress == BarsArray.Length - 1)
+                if (BarsInProgress == BarsArray.Length - 1)
                 {
                     // Must user's bot OnStart here since we do not have a valid Time before
                     if (mDoStart)
@@ -323,39 +325,15 @@ namespace NinjaTrader.NinjaScript.Strategies
                 OnError(error);
             }
         }
-#if false
+
         protected override void OnBarUpdate()
         {
-            // Only process the primary data series
-            if (CurrentBar <= 0
-                || mIsStopped
-                || BarsInProgress != 0
-                || IsTickReplay)
-                return;
+            if (CurrentBars[0] < BarsRequiredToTrade) 
+                return;              // not ready yet
 
-            try
-            {
-                // we have to postpone OnStart until here because earlier we do not have a valid Time
-                if (mDoStart)
-                {
-                    OnStart();  // Call user's bot init 2nd time OnStart
-                    mDoStart = false;
-                }
-
-                AbstractRobot.PreTick();
-                OnTick();
-                AbstractRobot.PostTick();
-            }
-            catch (Exception)
-            {
-                var error = new Error()
-                {
-                    Code = ErrorCode.TechnicalError
-                };
-                OnError(error);
-            }
+            _warm = true;
         }
-#endif
+
         // here we dispatch OrderState.Filled and raise the corresponding events
         // OnExecutionUpdate gives us IsEntry, IsExit, IsEntryStrategy, IsExitStrategy, 
         // OnOrderUpdate does not

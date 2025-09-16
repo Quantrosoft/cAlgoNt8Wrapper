@@ -41,7 +41,8 @@ namespace NinjaTrader.NinjaScript.Strategies
     public enum TradeType
     {
         Buy,
-        Sell
+        Sell,
+        Debug
     }
 
     public enum RunningMode

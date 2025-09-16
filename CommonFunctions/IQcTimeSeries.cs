@@ -32,6 +32,7 @@ namespace TdsCommons
         int Count { get; }
         DateTime this[int index] { get; }
         DateTime LastValue { get; }
+        NinjaTrader.NinjaScript.TimeSeries PlatformTimeSeries { get; }
         DateTime Last(int index);
         void Add(DateTime value);
         void Bump();

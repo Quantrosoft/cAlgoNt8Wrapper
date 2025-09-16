@@ -28,18 +28,18 @@ namespace NinjaTrader.NinjaScript.Strategies
     public class NtQcTimeSeries : IQcTimeSeries
     {
         //     Gets the number of elements contained in the series.
-        public int Count => mNinjaTimeSeries.Count;
+        public int Count => PlatformTimeSeries.Count;
 
         private NtQcBars mBars;
         // With TickReplay we use our own Ringbuffer
         private Ringbuffer<DateTime> mTickReplayData;
         // Without TickReplay we redirect directly to Ninja series
-        private NinjaTrader.NinjaScript.TimeSeries mNinjaTimeSeries;
+        public NinjaTrader.NinjaScript.TimeSeries PlatformTimeSeries { get; }
 
         public NtQcTimeSeries(NtQcBars bars, NinjaTrader.NinjaScript.TimeSeries timeSeries)
         {
             mBars = bars;
-            mNinjaTimeSeries = timeSeries;
+            PlatformTimeSeries = timeSeries;
             mTickReplayData = new Ringbuffer<DateTime>(NtQcBars.TickReplaySize);
         }
 
@@ -77,7 +77,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                     + TimeSpan.FromSeconds(mBars.BarsSeconds);  // Correct wrong time from NinjaTrader
             }
             else
-                return mNinjaTimeSeries[index];
+                return PlatformTimeSeries[index];
         }
         public void Add(DateTime value) { }
         public void Bump() { }

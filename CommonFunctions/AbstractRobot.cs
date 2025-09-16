@@ -1071,7 +1071,7 @@ namespace RobotLib
                         mLogger.AddText((isComma ? "," : "") + lp.EntryTime.ToString("yyyy.MM.dd"));
                         continue;
 
-                    case "OpenUTC":
+                    case "OpenTime":
                         mLogger.AddText((isComma ? "," : "") + lp.EntryTime.ToString("HH:mm:ss"));
                         continue;
 
@@ -1111,13 +1111,15 @@ namespace RobotLib
                         mLogger.AddText((isComma ? "," : "") + lp.ExitTime.ToString("yyyy.MM.dd"));
                         continue;
 
-                    case "CloseUTC":
+                    case "CloseTime":
                         mLogger.AddText((isComma ? "," : "") + lp.ExitTime.ToString("HH:mm:ss"));
                         continue;
 
                     case "Mode":
                         mLogger.AddText((isComma ? "," : "")
-                            + (TradeType.Sell == lp.TradeType ? "Short " : "Long ")
+                            + ((TradeType.Debug == lp.TradeType 
+                            ? ""
+                            : (TradeType.Sell == lp.TradeType ? "Short " : "Long ")))
                             + lp.OrderType);
                         continue;
 
