@@ -951,10 +951,86 @@ namespace RobotLib
                     LoggerWriteHeader(header);
                 else
                 {
-                    var firstLine = File.ReadLines(logFile).First();
-                    mHeaderSplit = firstLine.Split(',');
+                    // Use retry logic to read the first line safely
+                    string firstLine = RetryReadFirstLine(logFile);
+                    if (!string.IsNullOrEmpty(firstLine))
+                    {
+                        mHeaderSplit = firstLine.Split(',');
+                    }
+                    else
+                    {
+                        // Fallback: recreate header if we can't read the existing file
+                        mRobot.Print("Log | Warning: Could not read existing log file header, recreating...");
+                        LoggerWriteHeader(header);
+                    }
                 }
             }
+        }
+
+        private string RetryReadFirstLine(string filePath, int maxRetries = 10, int baseDelayMs = 50)
+        {
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    // Try to read the first line
+                    return File.ReadLines(filePath).FirstOrDefault() ?? "";
+                }
+                catch (IOException ex) when (ex.Message.Contains("being used by another process"))
+                {
+                    if (i == maxRetries - 1)
+                    {
+                        mRobot?.Print($"Log | Failed to read log file header after {maxRetries} attempts: {ex.Message}");
+                        return "";
+                    }
+
+                    // Exponential backoff with jitter
+                    int delay = baseDelayMs * (int)Math.Pow(2, i) + new Random().Next(0, 50);
+                    System.Threading.Thread.Sleep(delay);
+                }
+                catch (Exception ex)
+                {
+                    mRobot?.Print($"Log | Error reading log file header: {ex.Message}");
+                    return "";
+                }
+            }
+
+            return "";
+        }
+
+        // Alternative method using FileStream for more control
+        private string RetryReadFirstLineWithStream(string filePath, int maxRetries = 10, int baseDelayMs = 50)
+        {
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fileStream))
+                    {
+                        return reader.ReadLine() ?? "";
+                    }
+                }
+                catch (IOException ex) when (ex.Message.Contains("being used by another process"))
+                {
+                    if (i == maxRetries - 1)
+                    {
+                        mRobot?.Print($"Log | Failed to read log file header after {maxRetries} attempts: {ex.Message}");
+                        return "";
+                    }
+
+                    // Exponential backoff with jitter
+                    int delay = baseDelayMs * (int)Math.Pow(2, i) + new Random().Next(0, 50);
+                    System.Threading.Thread.Sleep(delay);
+                }
+                catch (Exception ex)
+                {
+                    mRobot?.Print($"Log | Error reading log file header: {ex.Message}");
+                    return "";
+                }
+            }
+
+            return "";
         }
 
         public void LoggerWriteHeader(string header = "")

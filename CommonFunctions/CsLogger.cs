@@ -27,26 +27,29 @@ using TdsCommons;
 
 namespace RobotLib.Cs
 {
-    public class CsLogger : ILogger
+    public class CsLogger : ILogger, IDisposable
     {
         private StreamWriter mStreamWriter;
         private string mLogFile;
         private string mLine = "";
 #if CTRADER
-        cAlgo.API.
+    cAlgo.API.
 #endif
         Strategy mRobot;
+        private bool disposed = false;
 
         public bool IsOpen
         {
             get { return mStreamWriter != null; }
         }
+
         public LogFlags Mode { get; set; }
+
         public bool WriteHeader { get; private set; }
 
         public CsLogger(
 #if CTRADER
-        cAlgo.API.
+    cAlgo.API.
 #endif
             Strategy robot)
         {
@@ -55,6 +58,12 @@ namespace RobotLib.Cs
 
         public string LogOpen(string pathName, string filename, bool append, LogFlags mode)
         {
+            // Close any existing stream first
+            if (IsOpen)
+            {
+                Close("");
+            }
+
             Mode = mode;
 
             var dir = Path.Combine(Path.GetDirectoryName(pathName), Path.GetDirectoryName(filename));
@@ -70,13 +79,40 @@ namespace RobotLib.Cs
                 mLogFile = MakeUniqueLogfileName(mLogFile);
 
             var retVal = File.Exists(mLogFile) ? mLogFile : "";
-            try
+
+            // Add retry logic with delay
+            int retryCount = 0;
+            const int maxRetries = 5;
+            const int delayMs = 100;
+
+            while (retryCount < maxRetries)
             {
-                mStreamWriter = new StreamWriter(mLogFile, append);
+                try
+                {
+                    mStreamWriter = new StreamWriter(mLogFile, append);
+                    break; // Success, exit retry loop
+                }
+                catch (IOException ex) when (ex.Message.Contains("being used by another process"))
+                {
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        // Log the error or handle it appropriately
+                        mRobot?.Print($"Log | Failed to open log file after {maxRetries} attempts: {ex.Message}");
+                        return "";
+                    }
+
+                    // Wait before retrying
+                    System.Threading.Thread.Sleep(delayMs * retryCount);
+                }
+                catch (Exception ex)
+                {
+                    // Handle other exceptions
+                    mRobot?.Print($"Log | Error opening log file: {ex.Message}");
+                    return "";
+                }
             }
-            catch (Exception)
-            {
-            }
+
             return retVal;
         }
 
@@ -85,7 +121,7 @@ namespace RobotLib.Cs
             string terminalCommondataPath = Environment.GetEnvironmentVariable("USERPROFILE")
                + @"\Documents\cAlgo\Sources\..\Logfiles";
 #if TDS
-            return terminalCommondataPath + "\\Tds.csv";
+        return terminalCommondataPath + "\\Tds.csv";
 #else
             return terminalCommondataPath + "\\Algo.csv";
 #endif
@@ -136,15 +172,34 @@ namespace RobotLib.Cs
 
         public void Close(string preText)
         {
-            if (IsOpen)
-            {
-                mStreamWriter.Close();
+            if (!IsOpen)
+                return;
 
-                if (preText.Length > 10)
+            try
+            {
+                // Flush and close the stream
+                mStreamWriter.Flush();
+                mStreamWriter.Close();
+                mStreamWriter.Dispose();
+            }
+            catch (Exception ex)
+            {
+                mRobot?.Print($"Log | Error closing stream: {ex.Message}");
+            }
+            finally
+            {
+                mStreamWriter = null; // Important: nullify the reference
+            }
+
+            // Add delay before file operations to ensure handle is released
+            if (preText.Length > 10)
+            {
+                System.Threading.Thread.Sleep(50); // Small delay
+
+                try
                 {
                     // Read the existing content of the file
                     string fileContent = File.ReadAllText(mLogFile);
-
                     fileContent = fileContent.Replace("sep=,\n", "");
 
                     // Concatenate the new text at the beginning with the original content
@@ -152,6 +207,10 @@ namespace RobotLib.Cs
 
                     // Write the updated content back to the file
                     File.WriteAllText(mLogFile, updatedContent);
+                }
+                catch (Exception ex)
+                {
+                    mRobot?.Print($"Log | Error updating file with preText: {ex.Message}");
                 }
             }
         }
@@ -180,6 +239,33 @@ namespace RobotLib.Cs
             }
 
             return pathName;
+        }
+
+        // IDisposable implementation
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                if (disposing)
+                {
+                    if (IsOpen)
+                    {
+                        Close("");
+                    }
+                }
+                disposed = true;
+            }
+        }
+
+        ~CsLogger()
+        {
+            Dispose(false);
         }
     }
 }

@@ -22,7 +22,6 @@ SOFTWARE.
 
 using NinjaTrader.Cbi;
 using NinjaTrader.Core;
-using NinjaTrader.Custom.Strategies.RoadToSuccess;
 using NinjaTrader.Data;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.NinjaScript;
