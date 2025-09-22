@@ -1159,6 +1159,10 @@ namespace RobotLib
                         mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(lp.Lots, lotDigits));
                         continue;
 
+                    case "Contracts":
+                        mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(lp.Lots, lotDigits));
+                        continue;
+
                     case "OpenPrice":
                         mLogger.AddText((isComma ? "," : "") + ConvertUtils.DoubleToString(lp.EntryPrice, lp.Symbol.Digits));
                         continue;
