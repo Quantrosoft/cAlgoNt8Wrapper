@@ -327,7 +327,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         protected override void OnBarUpdate()
         {
-            if (CurrentBars[0] < BarsRequiredToTrade) 
+            if (CurrentBars[0] < BarsRequiredToTrade)
                 return;              // not ready yet
 
             _warm = true;
@@ -688,19 +688,17 @@ namespace NinjaTrader.NinjaScript.Strategies
             {
                 if (position.GrossProfit > 0)
                     // From NT Web Site: Methods that generate orders to exit a position will be ignored if:
-                    // A position is open and an order submitted by an enter method(EnterLongLimit() for example)
+                    // A position is open and an order submitted by an enter method (EnterLongLimit() for example)
                     // is active and the order is used to open a position in the opposite direction
                     //order = ExitLongLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
-                    order = ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
-                else
+                    //else
                     order = ExitLong(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
             else
             {
                 if (position.GrossProfit > 0)
-                    order = ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
-                //order = ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
-                else
+                    //order = ExitShortLimit(position.Symbol.SymbolBarIndex, true, (int)volume, position.CurrentPrice, signal, signal);
+                    //else
                     order = ExitShort(position.Symbol.SymbolBarIndex, (int)volume, signal, signal);
             }
 
