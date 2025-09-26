@@ -105,9 +105,6 @@
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="InfragisticsWPF4.DataPresenter.v15.1">
-      <HintPath>C:\Program Files\NinjaTrader 8\bin\InfragisticsWPF4.DataPresenter.v15.1.dll</HintPath>
-    </Reference>
     <Reference Include="Infralution.Localization.Wpf">
       <HintPath>C:\Program Files\NinjaTrader 8\bin\Infralution.Localization.Wpf.dll</HintPath>
     </Reference>
