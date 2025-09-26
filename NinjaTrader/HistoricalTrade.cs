@@ -22,7 +22,7 @@ SOFTWARE.
 
 using System;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     Represents the historical trade interface.
     public class HistoricalTrade

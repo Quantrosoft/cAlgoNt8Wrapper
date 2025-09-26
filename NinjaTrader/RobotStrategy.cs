@@ -20,13 +20,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+using cAlgoNt8Wrapper;
 using NinjaTrader.Cbi;
 using NinjaTrader.Core;
 using NinjaTrader.Data;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.NinjaScript;
+using NinjaTrader.NinjaScript;
 using NinjaTrader.NinjaScript.Indicators;
-using NinjaTrader.NinjaScript.Strategies.Internals;
+using NinjaTrader.NinjaScript.Strategies;
 using RobotLib;
 using RobotLib.Cs;
 using Rules1;
@@ -54,7 +56,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         // because they are needed by both platforms
         [XmlIgnore, Browsable(false)] public Symbol Symbol;
         [XmlIgnore, Browsable(false)] public Symbols Symbols;
-        [XmlIgnore, Browsable(false)] public new Account Account;
+        [XmlIgnore, Browsable(false)] public new cAlgoNt8Wrapper.Account Account;
         [XmlIgnore, Browsable(false)] public new Positions Positions;
         [XmlIgnore, Browsable(false)] public PendingOrders PendingOrders;
         [XmlIgnore, Browsable(false)] public History History;
@@ -159,7 +161,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                         PlatformTimeZoneInfo = Globals.GeneralOptions.TimeZoneInfo;
 
                         Symbols = new Symbols(this);
-                        Account = new Account(this);
+                        Account = new cAlgoNt8Wrapper.Account(this);
                         Positions = new Positions(this);
                         PendingOrders = new PendingOrders(this);
                         History = new History(this);
@@ -319,7 +321,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             {
                 var error = new Error()
                 {
-                    Code = ErrorCode.TechnicalError
+                    Code = cAlgoNt8Wrapper.ErrorCode.TechnicalError
                 };
                 OnError(error);
             }
@@ -351,12 +353,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 
             if (execution.IsEntry || execution.IsEntryStrategy)
             {
-                Position position = null;
+                cAlgoNt8Wrapper.Position position = null;
                 if (execution.Order.IsLimit)
                 {
                     var pendingOrder = PendingOrders.Where(p => GetSignal(p.Label, p.Comment)
                         == execution.Order.Name).FirstOrDefault();
-                    position = new Position(AbstractRobot, execution.Order)
+                    position = new cAlgoNt8Wrapper.Position(AbstractRobot, execution.Order)
                     {
                         EntryTime = Time,
                         Label = pendingOrder.Label,
@@ -378,7 +380,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                     position.EntryTime = Time;
 
                     // remove invalid positions left behind by previous unfilled opens
-                    Position invalidPos = null;
+                    cAlgoNt8Wrapper.Position invalidPos = null;
                     do
                     {
                         invalidPos = Positions.Where(p => p.EntryTime < CoFu.TimeInvalid).FirstOrDefault();
@@ -510,7 +512,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             var signal = GetSignal(label, comment);
             var isLong = tradeType == TradeType.Buy;
 
-            var position = new Position(AbstractRobot, order)
+            var position = new cAlgoNt8Wrapper.Position(AbstractRobot, order)
             {
                 // Real EntryTime will be set by OnExecutionUpdate()
                 EntryTime = default,
@@ -584,7 +586,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             return new TradeResult() { IsSuccessful = null != order };
         }
 
-        public TradeResult ModifyPosition(Position position,
+        public TradeResult ModifyPosition(cAlgoNt8Wrapper.Position position,
             double? stopLoss,
             double? takeProfit,
             CalculationMode calculationMode)
@@ -610,7 +612,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             return new TradeResult { IsSuccessful = true, Position = position };
         }
 
-        public TradeResult PlaceTrailProtection(Position position,
+        public TradeResult PlaceTrailProtection(cAlgoNt8Wrapper.Position position,
             double trailDistance,
             CalculationMode calculationMode)
         {
@@ -662,7 +664,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         //
         // Returns:
         //     Trade Result
-        public TradeResult ClosePosition(Position position)
+        public TradeResult ClosePosition(cAlgoNt8Wrapper.Position position)
         {
             return ClosePosition(position, position.VolumeInUnits);
         }
@@ -680,7 +682,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         //
         // Returns:
         //     Trade Result
-        public TradeResult ClosePosition(Position position, double volume)
+        public TradeResult ClosePosition(cAlgoNt8Wrapper.Position position, double volume)
         {
             var signal = GetSignal(position.Label, position.Comment);
             Order order = null;
@@ -746,7 +748,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 {
                     var error = new Error()
                     {
-                        Code = ErrorCode.TechnicalError
+                        Code = cAlgoNt8Wrapper.ErrorCode.TechnicalError
                     };
                     OnError(error);
                 }

@@ -24,7 +24,7 @@ using NinjaTrader.NinjaScript.Strategies;
 using RobotLib;
 using System;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     Represents the Chart Interface.
     public class Chart : ChartArea

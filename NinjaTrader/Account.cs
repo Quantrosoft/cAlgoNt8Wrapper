@@ -22,9 +22,10 @@ SOFTWARE.
 
 using NinjaTrader.Cbi;
 using NinjaTrader.Gui.NinjaScript;
+using NinjaTrader.NinjaScript.Strategies;
 using System;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     public class Account : IAccount
     {
@@ -216,4 +217,4 @@ namespace NinjaTrader.NinjaScript.Strategies
     }
 }
 
-namespace NinjaTrader.NinjaScript.Strategies { }
+namespace cAlgoNt8Wrapper { }

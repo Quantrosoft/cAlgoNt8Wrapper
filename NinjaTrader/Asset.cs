@@ -21,8 +21,9 @@ SOFTWARE.
 */
 
 using NinjaTrader.Gui.NinjaScript;
+using NinjaTrader.NinjaScript.Strategies;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     The asset represents a currency.
     public class Asset

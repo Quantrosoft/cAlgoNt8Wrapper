@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     Represents the Horizontal Line chart object. Used to mark a certain value on
     //     the Y-axis throughout the whole chart.

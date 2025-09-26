@@ -82,9 +82,9 @@ namespace TdsCommons
 
         #region Ctor
         /// <summary>
-        /// Creates a new instance of a <see cref="Ringbuffer<T>"/> with a specified cache size.
+        /// Creates a new instance of a "RingBuffer with a specified cache size.
         /// </summary>
-        /// <param name="Size">The maximal count of items to be stored within the ring buffer.</param>
+        /// <param name="size">The maximal count of items to be stored within the ring buffer.</param>
         public Ringbuffer(int _slots)
         {
             // set Slots and init the cache

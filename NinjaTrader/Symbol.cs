@@ -21,9 +21,10 @@ SOFTWARE.
 */
 
 using NinjaTrader.Cbi;
+using NinjaTrader.NinjaScript.Strategies;
 using System;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     public class Symbol
     {

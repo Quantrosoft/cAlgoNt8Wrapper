@@ -20,12 +20,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+using NinjaTrader.NinjaScript.Strategies;
 using NinjaTrader.Data;
 using System;
 using TdsCommons;
 using static TdsDefs;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     public class NtQcBars : IQcBars
     {

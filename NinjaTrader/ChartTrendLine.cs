@@ -22,7 +22,7 @@ SOFTWARE.
 
 using System;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     Represents the Trend Line chart object. A straight line that can be drawn from
     //     point 1 to the point 2 in any direction to mark the trends on the chart.

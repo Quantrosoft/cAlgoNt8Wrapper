@@ -21,10 +21,11 @@ SOFTWARE.
 */
 
 using NinjaTrader.Cbi;
+using NinjaTrader.NinjaScript.Strategies;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NinjaTrader.NinjaScript.Strategies.Internals
+namespace cAlgoNt8Wrapper
 {
     //     Represents the list of all the symbols with the symbol names as string values.
     public class Symbols

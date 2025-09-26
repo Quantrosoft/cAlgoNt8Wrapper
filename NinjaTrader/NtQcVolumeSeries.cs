@@ -27,7 +27,7 @@ using System;
 using System.Collections.Generic;
 using TdsCommons;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     public class NtQcVolumeSeries : ISeries<double>, IQcVolumeSeries
     {

@@ -20,10 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 */
 
+using cAlgoNt8Wrapper;
 using NinjaTrader.FIX;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.NinjaScript;
 using NinjaTrader.Gui.NinjaScript.Wizard;
+using NinjaTrader.NinjaScript;
 using NinjaTrader.NinjaScript.DrawingTools;
 using NinjaTrader.NinjaScript.Strategies;
 using System;
@@ -32,7 +34,7 @@ using System;
     The chart is always drawn based on BarsArray[0] — that's the primary data series.
  */
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     The Chart Area Interface.
     public class ChartArea
@@ -2986,7 +2988,7 @@ namespace NinjaTrader.NinjaScript.Strategies
         //     The trend line style.
         ChartArrow DrawArrow(string name, int barIndex1, double y1, int barIndex2, double y2, Color color, int thickness, LineStyle lineStyle);
 #endif
-        private DrawingTools.TextPosition ToTextPosition(VerticalAlignment vAlign, HorizontalAlignment hAlign)
+        private NinjaTrader.NinjaScript.DrawingTools.TextPosition ToTextPosition(VerticalAlignment vAlign, HorizontalAlignment hAlign)
         {
             switch (vAlign)
             {
@@ -2994,28 +2996,28 @@ namespace NinjaTrader.NinjaScript.Strategies
                     switch (hAlign)
                     {
                         case HorizontalAlignment.Left:
-                            return DrawingTools.TextPosition.TopLeft;
+                            return NinjaTrader.NinjaScript.DrawingTools.TextPosition.TopLeft;
                         case HorizontalAlignment.Right:
-                            return DrawingTools.TextPosition.TopRight;
+                            return NinjaTrader.NinjaScript.DrawingTools.TextPosition.TopRight;
                         default:
-                            return DrawingTools.TextPosition.Center;
+                            return NinjaTrader.NinjaScript.DrawingTools.TextPosition.Center;
                     }
 
                 case VerticalAlignment.Bottom:
                     switch (hAlign)
                     {
                         case HorizontalAlignment.Left:
-                            return DrawingTools.TextPosition.BottomLeft;
+                            return NinjaTrader.NinjaScript.DrawingTools.TextPosition.BottomLeft;
                         case HorizontalAlignment.Right:
-                            return DrawingTools.TextPosition.BottomRight;
+                            return NinjaTrader.NinjaScript.DrawingTools.TextPosition.BottomRight;
                         default:
-                            return DrawingTools.TextPosition.Center;
+                            return NinjaTrader.NinjaScript.DrawingTools.TextPosition.Center;
                     }
 
                 case VerticalAlignment.Center:
                 case VerticalAlignment.Stretch:
                 default:
-                    return DrawingTools.TextPosition.Center;
+                    return NinjaTrader.NinjaScript.DrawingTools.TextPosition.Center;
             }
         }
 

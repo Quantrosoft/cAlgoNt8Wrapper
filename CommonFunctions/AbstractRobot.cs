@@ -26,7 +26,7 @@ using cAlgo.API.Internals;
 #else
 using NinjaTrader.NinjaScript;
 using NinjaTrader.NinjaScript.Strategies;
-using NinjaTrader.NinjaScript.Strategies.Internals;
+using cAlgoNt8Wrapper;
 #endif
 using System;
 using System.Collections.Generic;

@@ -23,7 +23,7 @@ SOFTWARE.
 using System;
 using System.Globalization;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     Represents an ARGB (alpha, red, green, blue) color.
     public sealed class Color : IEquatable<Color>

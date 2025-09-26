@@ -25,7 +25,7 @@ using NinjaTrader.NinjaScript;
 using System;
 using TdsCommons;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     public class NtQcDataSeries : IQcDataSeries
     {

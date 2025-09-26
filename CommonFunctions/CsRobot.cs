@@ -23,6 +23,7 @@ SOFTWARE.
 #if CTRADER
 using cAlgo.API;
 #endif
+using cAlgoNt8Wrapper;
 using NinjaTrader.NinjaScript.Strategies;
 using System;
 

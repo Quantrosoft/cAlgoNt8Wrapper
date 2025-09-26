@@ -22,7 +22,7 @@ SOFTWARE.
 
 using System;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     Represents the Text chart object. Allows place the text anywhere on the chart,
     //     bound to the chart.

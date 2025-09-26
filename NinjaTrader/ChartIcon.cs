@@ -24,7 +24,7 @@ SOFTWARE.
 // Type: cAlgo.ChartIcon
 using System;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     /// <summary>Represents the Icon chart object.</summary>
     public class ChartIcon : ChartObject

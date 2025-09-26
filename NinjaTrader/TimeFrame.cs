@@ -22,7 +22,7 @@ SOFTWARE.
 
 using static TdsDefs;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     public class TimeFrame
     {

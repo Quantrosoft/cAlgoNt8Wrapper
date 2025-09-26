@@ -22,7 +22,7 @@ SOFTWARE.
 
 // cTrader API Emulator
 // Type: cAlgo.ChartColorSettings
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     /// <summary>Represents the charts NinjaTrader.API.Color Settings.</summary>
     /// <remarks>

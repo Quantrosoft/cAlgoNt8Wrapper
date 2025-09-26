@@ -24,7 +24,7 @@ using NinjaTrader.NinjaScript.Strategies;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace NinjaTrader.NinjaScript.Strategies
+namespace cAlgoNt8Wrapper
 {
     //     Provides access to methods of the historical trades collection
     public class History : IEnumerable<HistoricalTrade>, IEnumerable
