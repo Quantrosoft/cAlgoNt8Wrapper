@@ -69,7 +69,7 @@ namespace cAlgoNt8Wrapper
 
             DigitsSize = 1.0 / Math.Pow(10, mSymbol.Digits);
 
-            if (mBars.PriceLevelSize > 0)
+            if (mBars.ImbaPriceLevelSize > 0)
             {
                 mLevelsBuf = new Ringbuffer<Dictionary<int, long>>(NtQcBars.TickReplaySize);
                 mMinKeyBuf = new Ringbuffer<int>(NtQcBars.TickReplaySize);
@@ -90,7 +90,7 @@ namespace cAlgoNt8Wrapper
 
             if (mBars.IsNewInternalBar)
             {
-                if (mBars.PriceLevelSize > 0)
+                if (mBars.ImbaPriceLevelSize > 0)
                 {
                     // Push previous bar’s snapshot into the ring buffers
                     mLevelsBuf.Add(mPriceLevels);
@@ -118,10 +118,10 @@ namespace cAlgoNt8Wrapper
                 {
                     mVolume += args.Volume;
 
-                    if (mBars.PriceLevelSize > 0)
+                    if (mBars.ImbaPriceLevelSize > 0)
                     {
                         var priceLevel = CoFu.iPrice(args.Price, DigitsSize)
-                                         / CoFu.iPrice(mBars.PriceLevelSize, DigitsSize);
+                                         / CoFu.iPrice(mBars.ImbaPriceLevelSize, DigitsSize);
 
                         if (mPriceLevels.TryGetValue(priceLevel, out var v))
                         {
@@ -141,7 +141,7 @@ namespace cAlgoNt8Wrapper
 
             // Keep head of buffers reflecting the current bar
             mTickReplayVolumes.Swap(mVolume);
-            if (mBars.PriceLevelSize > 0)
+            if (mBars.ImbaPriceLevelSize > 0)
             {
                 mLevelsBuf.Swap(mPriceLevels);
                 mMinKeyBuf.Swap(mMinKey);
@@ -179,7 +179,7 @@ namespace cAlgoNt8Wrapper
         // minKey > maxKey indicates "empty"
         public (Dictionary<int, long> Levels, int MinKey, int MaxKey) GetPriceLevelVolumes(int index)
         {
-            if (mBars.PriceLevelSize > 0)
+            if (mBars.ImbaPriceLevelSize > 0)
             {
 
                 if (mBars.Robot.IsTickReplay)

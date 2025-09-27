@@ -1675,8 +1675,8 @@ namespace RobotLib
             else
             {
                 bars = mRobot.BarsDictionary[(barsSeconds, symbolName)];
-                if (bars.PriceLevelSize != priceLevelSize)
-                    bars.PriceLevelSize = priceLevelSize;
+                if (bars.ImbaPriceLevelSize != priceLevelSize)
+                    bars.ImbaPriceLevelSize = priceLevelSize;
             }
 #endif
             return bars;

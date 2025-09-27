@@ -49,7 +49,7 @@ namespace cAlgoNt8Wrapper
         public string SymbolName => mSymbolName;
 
         public bool IsNewInternalBar { get; private set; }
-        public double PriceLevelSize { get; set; }
+        public double ImbaPriceLevelSize { get; set; }
 
         //     Gets the average prices data (Open + High + Low + Close) / 4.
         //public IQcDataSeries AveragePrices => mBars.AveragePrices;
@@ -84,7 +84,7 @@ namespace cAlgoNt8Wrapper
             mSymbolName = symbolPair;
             BarsSeconds = barPeriodSeconds;
             BarsPeriod = new BarsPeriod();
-            PriceLevelSize = priceLevelSize;
+            ImbaPriceLevelSize = priceLevelSize;
 
             if (BarsSeconds >= SEC_PER_MINUTE)
             {
@@ -173,7 +173,7 @@ namespace cAlgoNt8Wrapper
                     AskVolumes = new NtQcVolumeSeries(this, symbol, BidAsk.Ask, Robot.Volumes[i]);
 
                     BarsBarIndex = i;
-                    if (-1 != PriceLevelSize)
+                    if (-1 != ImbaPriceLevelSize)
                         symbol.SymbolBarIndex = i;
                 }
             }
