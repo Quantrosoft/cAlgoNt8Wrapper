@@ -78,7 +78,7 @@ namespace RobotLib
     public delegate Position DelegateOpenTrade(
        Symbol symbol,
        TradeType tradeType,
-       TradeDirections allowedDirection,
+       TdsCommons.TradeDirectionsEnhanced allowedDirection,
        string commentVersion,
        string label,
        double volume);
@@ -1477,7 +1477,7 @@ namespace RobotLib
         public Position OpenTrade(
             Symbol symbol,
             TradeType tradeType,
-            TradeDirections allowedDirection,
+            TdsCommons.TradeDirectionsEnhanced allowedDirection,
             string commentVersion,
             string label,
             double volume,
@@ -1487,10 +1487,10 @@ namespace RobotLib
             ProfitCloseModes profitCloseMode)
         {
             var isLong = tradeType == TradeType.Buy;
-            if ((isLong && (allowedDirection == TradeDirections.na
-                  || allowedDirection == TradeDirections.Long))
-               || (!isLong && (allowedDirection == TradeDirections.na
-                  || allowedDirection == TradeDirections.Short)))
+            if ((isLong && (allowedDirection == TdsCommons.TradeDirectionsEnhanced.na
+                  || allowedDirection == TdsCommons.TradeDirectionsEnhanced.Long))
+               || (!isLong && (allowedDirection == TdsCommons.TradeDirectionsEnhanced.na
+                  || allowedDirection == TdsCommons.TradeDirectionsEnhanced.Short)))
             {
                 var orderComment = MakeLogComment(symbol, commentVersion);
                 volume = symbol.NormalizeVolumeInUnits(volume);
@@ -1532,7 +1532,7 @@ namespace RobotLib
         public Position OpenLimitTrade(
             Symbol symbol,
             TradeType tradeType,
-            TradeDirections allowedDirection,
+            TdsCommons.TradeDirectionsEnhanced allowedDirection,
             string commentVersion,
             string label,
             double volume,
@@ -1543,10 +1543,10 @@ namespace RobotLib
             ProfitCloseModes profitCloseMode)
         {
             var isLong = tradeType == TradeType.Buy;
-            if ((isLong && (allowedDirection == TradeDirections.na
-                  || allowedDirection == TradeDirections.Long))
-               || (!isLong && (allowedDirection == TradeDirections.na
-                  || allowedDirection == TradeDirections.Short)))
+            if ((isLong && (allowedDirection == TdsCommons.TradeDirectionsEnhanced.na
+                  || allowedDirection == TdsCommons.TradeDirectionsEnhanced.Long))
+               || (!isLong && (allowedDirection == TdsCommons.TradeDirectionsEnhanced.na
+                  || allowedDirection == TdsCommons.TradeDirectionsEnhanced.Short)))
             {
                 volume = symbol.NormalizeVolumeInUnits(volume);
                 var orderComment = MakeLogComment(symbol, commentVersion);

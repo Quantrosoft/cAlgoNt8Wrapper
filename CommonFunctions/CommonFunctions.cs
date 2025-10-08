@@ -414,7 +414,7 @@ namespace TdsCommons
         Equal
     }
 
-    public enum TradeDirections
+    public enum TradeDirectionsEnhanced
     {
         Long,
         Short,

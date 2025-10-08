@@ -432,4 +432,11 @@ namespace cAlgoNt8Wrapper
         //     Occurs when accessing trading API without trading permission.
         NoTradingPermission
     }
+
+    public enum ProfitCloseModes
+    {
+        TakeProfit,
+        BreakEven,
+        TrailingStop,
+    }
 }
